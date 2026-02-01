@@ -1,0 +1,1426 @@
+import { useState, useEffect, useContext } from "react";
+
+import {
+  Alignment,
+  Button,
+  Navbar,
+  NavbarDivider,
+  NavbarGroup,
+  NavbarHeading,
+  Divider,
+  Classes,
+  EditableText,
+  Position,
+  Alert,
+  ResizeSensor,
+  H3,
+  Callout,
+  Spinner,
+} from "@blueprintjs/core";
+
+import { Tooltip2, Classes as popclass } from "@blueprintjs/popover2";
+
+import SplitPane from "react-split-pane";
+
+import { LoadExplore } from "../LoadExplore";
+
+import Stats from "../Stats";
+import Logs from "../Logs";
+import {
+  getMinMax,
+  code,
+  resetApp,
+  default_selection,
+} from "../../utils/utils";
+import DimPlot from "../Plots/DimPlot";
+import MarkerPlot from "../Markers/index";
+import DotPlot from "../DotPlot";
+
+import { AppContext } from "../../context/AppContext";
+
+import pkgVersion from "../../../package.json";
+
+import logo from "../../assets/kana-cropped.png";
+import "../../App.css";
+import FeatureSetEnrichment from "../FeatureSets";
+import CellAnnotation from "../CellAnnotation";
+import ClusterAnnotation from "../ClusterAnnotation";
+
+const scranWorker = new Worker(
+  new URL("../../workers/explorer.worker.js", import.meta.url),
+  { type: "module" }
+);
+
+let logs = [];
+
+export function ExplorerMode() {
+  // true until wasm is initialized
+  const [loading, setLoading] = useState(true);
+
+  // Logs
+  // const [logs, setLogs] = useState([]);
+  // show logs drawer
+  const [showLogs, setShowLogs] = useState(false);
+
+  // Error handling
+  // error message caught from the worker
+  const [scranError, setScranError] = useState(null);
+
+  const {
+    wasmInitialized,
+    setWasmInitialized,
+    datasetName,
+    setDatasetName,
+    setPreInputFilesStatus,
+    annotationCols,
+    setAnnotationCols,
+    annotationObj,
+    setAnnotationObj,
+    setGenesInfo,
+    geneColSel,
+    setGeneColSel,
+    exploreFiles,
+    preInputFiles,
+  } = useContext(AppContext);
+
+  // show various components, reacts to left side bar clicks
+  const [showPanel, setShowPanel] = useState("explore-import");
+
+  // modalities
+  const [modality, setModality] = useState(null);
+  const [selectedModality, setSelectedModality] = useState(null);
+
+  /*******
+   * State to hold analysis specific results - START
+   */
+
+  // STEP: INPUTS
+  // dim sizes
+  const [initDims, setInitDims] = useState(null);
+  const [inputData, setInputData] = useState(null);
+
+  // STEP: QC; for all three, RNA, ADT, CRISPR
+  // dim sizes
+  const [qcDims, setQcDims] = useState(null);
+  const [qcData, setQcData] = useState(null);
+
+  // STEP: CELL_FILTERING
+  const [cellSubsetData, setCellSubsetData] = useState(null);
+
+  // STEP: FEATURE_SELECTION
+  const [fSelectionData, setFSelectionData] = useState(null);
+
+  // STEP: PCA; for all three - RNA, ADT, CRISPR
+  const [pcaVarExp, setPcaVarExp] = useState({});
+
+  // STEP: MARKER_DETECTION, CHOOSE_CLUSTERING
+  // only valid for column `KANA_CODE::CLUSTERS`
+  // cohen, mean scores per gene
+  const [selectedClusterSummary, setSelectedClusterSummary] = useState([]);
+  // ordering of genes for the selected cluster
+  const [selectedClusterIndex, setSelectedClusterIndex] = useState([]);
+
+  // STEP: REDUCED_DIMENSIONS: TSNE & UMAP
+  // actual embeddings
+  const [redDimsData, setRedDimsData] = useState({});
+  // for tsne/umap animation
+  const [animateData, setAnimateData] = useState(null);
+
+  // STEP: CELL_LABELLING
+  const [cellLabelData, setCellLabelData] = useState(null);
+
+  // STEP: FEATURE_SET_ENRICHMENT
+  const [fsetEnirchDetails, setFsetEnrichDetails] = useState({});
+  const [fsetEnirchSummary, setFsetEnrichSummary] = useState({});
+  /*******
+   * State to hold analysis specific results - END
+   ******/
+
+  // loaders for UI components
+  const [showDimPlotLoader, setShowDimPlotLoader] = useState(true);
+  const [showMarkerLoader, setShowMarkerLoader] = useState(true);
+  const [showQCLoader, setShowQCLoader] = useState(true);
+  const [showPCALoader, setShowPCALoader] = useState(false);
+  const [showNClusLoader, setShowNClusLoader] = useState(false);
+  const [showCellLabelLoader, setShowCellLabelLoader] = useState(false);
+  const [showFsetLoader, setShowFsetLoader] = useState(true);
+
+  function setAllLoaders() {
+    setShowDimPlotLoader(true);
+    setShowMarkerLoader(true);
+    setShowQCLoader(true);
+    // setShowPCALoader(true);
+    // setShowNClusLoader(true);
+    // setShowCellLabelLoader(true);
+    setShowFsetLoader(true);
+  }
+
+  const default_cluster = `${code}::CLUSTERS`;
+
+  /*******
+   * USER STATE REQUESTS - START
+   */
+
+  // what gene is selected for scatterplot
+  const [gene, setGene] = useState(null);
+
+  // request gene expression
+  const [reqGene, setReqGene] = useState(null);
+
+  // gene expression data for variation feature selector
+  const [geneExprData, setGeneExprData] = useState(null);
+
+  // ImageData user saves while exploring
+  const [savedPlot, setSavedPlot] = useState([]);
+
+  // request annotation column
+  const [reqAnnotation, setReqAnnotation] = useState(null);
+
+  // which cluster is selected from markers table
+  const [selectedCluster, setSelectedCluster] = useState(null);
+
+  // which dimplot cluster is selected
+  const [selectedDimPlotCluster, setSelectedDimPlotCluster] = useState(null);
+
+  // which cluster is selected from markers table
+  const [selectedMarkerAnnotation, setSelectedMarkerAnnotation] =
+    useState(null);
+
+  // which dimension is selected
+  const [selectedRedDim, setSelectedRedDim] = useState(null);
+
+  // is animation in progress ?
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  // if a user manually triggers an embedding animation (using the play button)
+  const [triggerAnimation, setTriggerAnimation] = useState(false);
+
+  // keeps track of what points were selected in lasso selections
+  const [selectedPoints, setSelectedPoints] = useState(null);
+
+  // set Cluster rank-type
+  const [clusterRank, setClusterRank] = useState("cohen-min-rank");
+  // which cluster is selected for vsmode
+  const [selectedVSCluster, setSelectedVSCluster] = useState(null);
+  // set cluster colors
+  const [clusterColors, setClusterColors] = useState(null);
+
+  // custom selection on reduced dims plot
+  const [customSelection, setCustomSelection] = useState({});
+  // remove custom Selection
+  const [delCustomSelection, setDelCustomSelection] = useState(null);
+
+  // state captured
+  const [restoreState, setRestoreState] = useState(null);
+  // for highlight in uDimPlots
+  const [highlightPoints, setHighlightPoints] = useState(null);
+  // set which cluster to highlight, also for custom selections
+  const [clusHighlight, setClusHighlight] = useState(null);
+  // set which clusterlabel is highlighted
+  const [clusHighlightLabel, setClusHighlightLabel] = useState(null);
+  // selected colorBy
+  const [colorByAnnotation, setColorByAnnotation] = useState(default_cluster);
+
+  // are we showing markers or feature sets?
+  const [markersORFSets, setMarkersOrFsets] = useState("markers");
+  // set feature set rank-type
+  const [fsetClusterRank, setFsetClusterRank] = useState("cohen-min-rank");
+  // feature scores cache
+  const [featureScores, setFeatureScores] = useState({});
+  // which fset cluster is selected
+  const [selectedFsetCluster, setSelectedFsetCluster] = useState(null);
+  // which  fset annotation, currently we only support computed clusters
+  const [selectedFsetAnnotation, setSelectedFsetAnnotation] = useState(null);
+  // what feature name is selected
+  const [selectedFsetIndex, setSelectedFsetIndex] = useState(null);
+  // request feature set scores
+  const [reqFsetIndex, setReqFsetIndex] = useState(null);
+  // cache for scores
+  const [featureScoreCache, setFeatureScoreCache] = useState(null);
+  // gene index selected from a feature set
+  const [featureSetGeneIndex, setFeatureSetGeneIndex] = useState(null);
+  // request for scores
+  const [reqFsetGeneIndex, setReqFsetGeneIndex] = useState(null);
+  // fset gene indices cache
+  const [fsetGeneIndxCache, setFsetGeneIndxCache] = useState(null);
+  // contains the actual gene scores
+  const [fsetGeneExprCache, setFsetGeneExprCache] = useState({});
+  // which cluster is selected for vsmode
+  const [selectedFsetVSCluster, setSelectedFsetVSCluster] = useState(null);
+  // modality in feature set
+  const [selectedFsetModality, setSelectedFsetModality] = useState(null);
+  // was feature set initialized?
+  const [initFset, setInitFset] = useState(false);
+
+  // which annotation is selected
+  const [selectedCellAnnAnnotation, setSelectedCellAnnAnnotation] =
+    useState(null);
+  // which cluster is selected in the celltype table
+  const [selectedCellAnnCluster, setSelectedCellAnnCluster] = useState(null);
+
+  /*******
+   * USER REQUESTS - END
+   ******/
+
+  // initializes various things on the worker side
+  useEffect(() => {
+    scranWorker.postMessage({
+      type: "INIT",
+      msg: "Initial Load",
+    });
+  }, []);
+
+  useEffect(() => {
+    if (wasmInitialized && preInputFiles) {
+      if (preInputFiles.files) {
+        scranWorker.postMessage({
+          type: "PREFLIGHT_INPUT",
+          payload: {
+            inputs: preInputFiles,
+          },
+        });
+      }
+    }
+  }, [preInputFiles, wasmInitialized]);
+
+  // EXPLORE dataset: files are imported into Kana
+  useEffect(() => {
+    if (wasmInitialized) {
+      if (exploreFiles.files != null) {
+        scranWorker.postMessage({
+          type: "EXPLORE",
+          payload: {
+            inputs: exploreFiles,
+          },
+        });
+
+        add_to_logs("info", `--- Analyis started---`);
+        setAllLoaders();
+      }
+    }
+  }, [exploreFiles, wasmInitialized]);
+
+  // request worker for new markers
+  // if either the cluster or the ranking changes
+  // VS mode
+  useEffect(() => {
+    if (selectedModality !== null && clusterRank !== null) {
+      if (selectedVSCluster !== null && selectedCluster !== null) {
+        let type = String(selectedCluster).startsWith("cs")
+          ? "computeVersusSelections"
+          : "computeVersusClusters";
+        scranWorker.postMessage({
+          type: type,
+          payload: {
+            modality: selectedModality,
+            left: selectedCluster,
+            right: selectedVSCluster,
+            rank_type: clusterRank,
+            annotation: selectedMarkerAnnotation,
+          },
+        });
+
+        add_to_logs("info", `--- ${type} sent ---`);
+      } else if (selectedCluster !== null) {
+        let type = String(selectedCluster).startsWith("cs")
+          ? "getMarkersForSelection"
+          : "getMarkersForCluster";
+        scranWorker.postMessage({
+          type: type,
+          payload: {
+            modality: selectedModality,
+            cluster: selectedCluster,
+            rank_type: clusterRank,
+            annotation: selectedMarkerAnnotation,
+          },
+        });
+
+        add_to_logs("info", `--- ${type} sent ---`);
+      }
+    }
+  }, [selectedCluster, selectedVSCluster, clusterRank, selectedModality]);
+
+  // compute markers in the worker
+  // when a new custom selection of cells is made through the UI
+  useEffect(() => {
+    if (
+      delCustomSelection === null &&
+      customSelection !== null &&
+      Object.keys(customSelection).length > 0
+    ) {
+      let csLen = `cs${Object.keys(customSelection).length}`;
+      var cs = customSelection[csLen];
+      scranWorker.postMessage({
+        type: "computeCustomMarkers",
+        payload: {
+          selection: cs,
+          id: csLen,
+        },
+      });
+
+      add_to_logs("info", `--- Compute markers for ${csLen} sent ---`);
+    }
+  }, [customSelection]);
+
+  // Remove a custom selection from cache
+  useEffect(() => {
+    if (delCustomSelection !== null) {
+      scranWorker.postMessage({
+        type: "removeCustomMarkers",
+        payload: {
+          id: delCustomSelection,
+        },
+      });
+
+      setDelCustomSelection(null);
+      add_to_logs(
+        "info",
+        `--- Delete custom markers for ${delCustomSelection} ---`
+      );
+
+      if (selectedCluster === delCustomSelection) {
+        setSelectedCluster(null);
+      }
+    }
+  }, [delCustomSelection]);
+
+  // get expression for a gene from worker
+  useEffect(() => {
+    if (reqGene != null && selectedModality != null) {
+      scranWorker.postMessage({
+        type: "getGeneExpression",
+        payload: {
+          gene: reqGene,
+          modality: selectedModality,
+        },
+      });
+
+      add_to_logs(
+        "info",
+        `--- Request gene expression for gene:${reqGene} sent ---`
+      );
+    }
+  }, [reqGene, selectedModality]);
+
+  // get annotation for a column from worker
+  useEffect(() => {
+    if (reqAnnotation) {
+      scranWorker.postMessage({
+        type: "getAnnotation",
+        payload: {
+          annotation: reqAnnotation,
+        },
+      });
+
+      add_to_logs(
+        "info",
+        `--- Request annotation for ${reqAnnotation} sent---`
+      );
+    }
+  }, [reqAnnotation]);
+
+  // if modality changes, show the new markers list
+  useEffect(() => {
+    if (selectedModality !== null && selectedModality !== undefined) {
+      if (
+        geneColSel[selectedModality] === null ||
+        geneColSel[selectedModality] === undefined
+      ) {
+        let tmp = geneColSel;
+        tmp[selectedModality] = Object.keys(
+          inputData.genes[selectedModality]
+        )[0];
+        setGeneColSel(tmp);
+      }
+      setGenesInfo(inputData.genes[selectedModality]);
+    }
+  }, [selectedModality]);
+
+  // initialize feature set
+  useEffect(() => {
+    if (
+      !initFset &&
+      selectedFsetModality !== null &&
+      selectedClusterSummary.length > 0
+    ) {
+      initFsetReq();
+    }
+  }, [selectedFsetModality, selectedClusterSummary]);
+
+  // compute feature set scores
+  useEffect(() => {
+    if (selectedFsetCluster !== null && fsetClusterRank !== null) {
+      if (selectedFsetVSCluster !== null && selectedFsetCluster !== null) {
+        scranWorker.postMessage({
+          type: "computeFeaturesetVSSummary",
+          payload: {
+            left: selectedFsetCluster,
+            right: selectedFsetVSCluster,
+            rank_type: fsetClusterRank,
+            annotation: selectedFsetAnnotation,
+            modality: selectedFsetModality,
+          },
+        });
+        add_to_logs("info", `--- computeFeaturesetVSSummary sent ---`);
+      } else if (selectedFsetCluster !== null) {
+        // if (!(`${selectedFsetCluster}-${fsetClusterRank}` in fsetEnirchSummary)) {
+        scranWorker.postMessage({
+          type: "computeFeaturesetSummary",
+          payload: {
+            modality: selectedFsetModality,
+            cluster: selectedFsetCluster,
+            rank_type: fsetClusterRank,
+            annotation: selectedFsetAnnotation,
+          },
+        });
+        // }
+        add_to_logs("info", `--- computeFeaturesetSummary sent ---`);
+      }
+    }
+  }, [
+    selectedFsetAnnotation,
+    selectedFsetCluster,
+    fsetClusterRank,
+    selectedFsetVSCluster,
+  ]);
+
+  // get feature scores for a set
+  useEffect(() => {
+    if (
+      reqFsetIndex != null &&
+      selectedFsetCluster != null &&
+      selectedFsetAnnotation !== null
+    ) {
+      scranWorker.postMessage({
+        type: "getFeatureScores",
+        payload: {
+          index: reqFsetIndex,
+          annotation: selectedFsetAnnotation,
+          cluster: selectedFsetCluster,
+          modality: selectedFsetModality,
+        },
+      });
+
+      add_to_logs(
+        "info",
+        `--- Request feature set cell score for feature index:${reqFsetIndex} sent ---`
+      );
+    }
+  }, [reqFsetIndex, selectedFsetCluster, selectedFsetAnnotation]);
+
+  // get feature scores for a set
+  useEffect(() => {
+    if (reqFsetGeneIndex != null && selectedFsetCluster != null) {
+      scranWorker.postMessage({
+        type: "getFeatureGeneIndices",
+        payload: {
+          index: reqFsetGeneIndex,
+          cluster: selectedFsetCluster,
+          annotation: selectedFsetAnnotation,
+          modality: selectedFsetModality,
+          rank_type: fsetClusterRank,
+        },
+      });
+
+      add_to_logs(
+        "info",
+        `--- Request feature set gene indices for feature index:${reqFsetGeneIndex} sent ---`
+      );
+    }
+  }, [reqFsetGeneIndex, selectedFsetCluster]);
+
+  useEffect(() => {
+    setGene(null);
+    setSelectedFsetIndex(null);
+  }, [markersORFSets]);
+
+  useEffect(() => {
+    if (selectedCellAnnAnnotation !== null && selectedCellAnnCluster !== null) {
+      if (
+        default_selection === selectedCellAnnAnnotation &&
+        !String(selectedCellAnnCluster).startsWith("cs")
+      ) {
+        return;
+      }
+
+      scranWorker.postMessage({
+        type: "computeCellAnnotation",
+        payload: {
+          cluster: selectedCellAnnCluster,
+          annotation: selectedCellAnnAnnotation,
+          modality: selectedFsetModality,
+        },
+      });
+
+      add_to_logs(
+        "info",
+        `--- Request cell labels for:${selectedCellAnnAnnotation} sent ---`
+      );
+    }
+  }, [selectedCellAnnAnnotation, selectedCellAnnCluster]);
+
+  function add_to_logs(type, msg, status) {
+    // let tmp = [...logs];
+    let d = new Date();
+    logs.push([type, d.toLocaleTimeString(), msg, status]);
+
+    // setLogs(tmp);
+  }
+
+  function initFsetReq() {
+    if (
+      !initFset &&
+      selectedFsetModality !== null &&
+      selectedClusterSummary.length > 0
+    ) {
+      scranWorker.postMessage({
+        type: "initFeaturesetEnrich",
+        payload: {
+          modality: selectedFsetModality,
+        },
+      });
+      setInitFset(true);
+      add_to_logs("info", `--- initFeaturesetEnrich sent ---`);
+    }
+  }
+
+  // use effects to sync between markers and gene set cluster selection
+  // only sync from markers table if modality is "RNA"
+  // useEffect(() => {
+  //   if (selectedModality === "RNA") {
+  //     if (markersORFSets === "markers" && selectedClusterSummary.length > 0) {
+  //       if (Object.keys(fsetEnirchDetails).length > 0) {
+  //         setSelectedFsetAnnotation(selectedMarkerAnnotation);
+  //         setSelectedFsetCluster(selectedCluster);
+  //       }
+
+  //       if (
+  //         cellLabelData !== null &&
+  //         selectedMarkerAnnotation === default_cluster
+  //       ) {
+  //         setSelectedCellAnnCluster(selectedCluster);
+  //       }
+  //     } else if (
+  //       markersORFSets === "featuresets" &&
+  //       Object.keys(fsetEnirchDetails).length > 0
+  //     ) {
+  //       if (selectedClusterSummary.length > 0) {
+  //         setSelectedMarkerAnnotation(selectedFsetAnnotation);
+  //         setSelectedCluster(selectedFsetCluster);
+  //       }
+
+  //       if (
+  //         cellLabelData !== null &&
+  //         selectedFsetAnnotation === default_cluster
+  //       ) {
+  //         setSelectedCellAnnCluster(selectedCluster);
+  //       }
+  //     } else if (
+  //       markersORFSets === "celltypeannotation" &&
+  //       cellLabelData !== null
+  //     ) {
+  //       if (selectedClusterSummary.length > 0) {
+  //         setSelectedModality("RNA");
+  //         setSelectedMarkerAnnotation(default_cluster);
+  //         setSelectedCluster(selectedCellAnnCluster);
+  //       }
+
+  //       if (Object.keys(fsetEnirchDetails).length > 0) {
+  //         setSelectedFsetModality("RNA");
+  //         setSelectedFsetAnnotation(default_cluster);
+  //         setSelectedFsetCluster(selectedCellAnnCluster);
+  //       }
+  //     }
+  //   }
+  // }, [
+  //   selectedMarkerAnnotation,
+  //   selectedCluster,
+  //   selectedFsetAnnotation,
+  //   selectedFsetCluster,
+  //   selectedCellAnnCluster,
+  // ]);
+
+  // Whenever exploreFiles is populated (e.g., via ProjectHub server-side run),
+  // automatically switch to the explore results panel.
+  useEffect(() => {
+    if (exploreFiles && exploreFiles.files) {
+      setShowPanel("explore");
+    }
+  }, [exploreFiles]);
+
+  scranWorker.onmessage = (msg) => {
+    const payload = msg.data;
+
+    // console.log("ON EXPLORE MAIN::RCV::", payload);
+
+    // process any error messages
+    if (payload) {
+      if (payload.type.toLowerCase().endsWith("start")) {
+        add_to_logs(
+          "start",
+          payload.type.toLowerCase().replace("_start", ""),
+          "started"
+        );
+      } else if (payload.type.indexOf("_store") !== -1) {
+        add_to_logs(
+          "info",
+          `(${payload.type
+            .toLowerCase()
+            .replace("_store", "")}) store initialized`
+        );
+      } else if (payload.type.toLowerCase().endsWith("init")) {
+        add_to_logs("info", payload.msg.toLowerCase().replace("success: ", ""));
+      } else if (payload.type.toLowerCase().endsWith("cache")) {
+        add_to_logs(
+          "complete",
+          payload.type.toLowerCase().replace("_cache", ""),
+          "finished (from cache)"
+        );
+      } else if (payload.type.toLowerCase().endsWith("data")) {
+        add_to_logs(
+          "complete",
+          payload.type.toLowerCase().replace("_data", ""),
+          "finished"
+        );
+      }
+
+      const { resp } = payload;
+      if (
+        payload.type.toLowerCase().endsWith("error") ||
+        resp?.status === "ERROR"
+      ) {
+        add_to_logs("error", `${resp.reason}`, "");
+
+        setScranError({
+          type: payload.type,
+          msg: resp.reason,
+          fatal: resp?.fatal === undefined ? true : resp.fatal,
+        });
+
+        return;
+      }
+    }
+
+    const { resp, type } = payload;
+
+    if (type === "INIT") {
+      setLoading(false);
+      setWasmInitialized(true);
+    } else if (type === "PREFLIGHT_INPUT_DATA") {
+      if (resp.details) {
+        setPreInputFilesStatus(resp.details);
+      }
+    } else if (type === "inputs_DATA") {
+      var info = [];
+      for (var [k, v] of Object.entries(resp.num_genes)) {
+        if (k == "") {
+          k = "unnamed modality"
+        }
+        info.push(`${v} features for ${k}`)
+      }
+      info.push(`${resp.num_cells} cells`);
+
+      setInitDims(info.join(", "));
+
+      let pmods = Object.keys(resp.genes);
+      setModality(pmods);
+
+      let tmodality = pmods[0];
+      if (selectedModality === null) {
+        setSelectedModality(tmodality);
+      }
+
+      // Auto-generating rowdata if the per-modality feature annotation is empty.
+      for (const p of pmods) {
+          let mod_gene_info = resp.genes[p]
+          if (Object.keys(mod_gene_info).length == 0) {
+              let dummy = new Int32Array(resp.num_genes[p])
+              for (var i = 0; i < dummy.length; ++i) {
+                  dummy[i] = i;
+              }
+              mod_gene_info["index"] = dummy
+          }
+      }
+ 
+      setInputData(resp);
+
+      if (resp?.annotations) {
+        setAnnotationCols(resp.annotations);
+
+        const categorical_annos = Object.keys(resp.annotations)
+          .filter((x) => resp.annotations[x]["type"] !== "continuous")
+          .filter(
+            (x) =>
+              resp.annotations[x]["type"] === "both" ||
+              (resp.annotations[x]["type"] === "categorical" &&
+                resp.annotations[x]["truncated"] === false)
+          );
+
+        let def_anno = categorical_annos[0];
+        if (categorical_annos.length > 1) {
+          if (categorical_annos.indexOf(default_cluster) !== -1) {
+            def_anno = default_cluster;
+          } else if (categorical_annos.indexOf("cluster") !== -1) {
+            def_anno = "cluster";
+          } else if (categorical_annos.indexOf("clusters") !== -1) {
+            def_anno = "clusters";
+          }
+        }
+
+        setColorByAnnotation(def_anno);
+        setSelectedFsetAnnotation(def_anno);
+        setSelectedMarkerAnnotation(def_anno);
+        setReqAnnotation(def_anno);
+        setSelectedDimPlotCluster(def_anno);
+        setSelectedCellAnnAnnotation(def_anno);
+        setSelectedCellAnnCluster(resp.annotations[def_anno].values[0]);
+      }
+      // setSelectedCluster(resp.annotations[0]);
+      // setSelectedFsetModality(tmodality);
+
+      setShowNClusLoader(false);
+      setShowMarkerLoader(false);
+    } else if (type === "choose_clustering_DATA") {
+      let def_anno = Object.keys(annotationCols)[0];
+      if (Object.keys(annotationCols).indexOf("clusters") !== -1) {
+        def_anno = "clusters";
+      } else if (Object.keys(annotationCols).indexOf("cluster") !== -1) {
+        def_anno = "cluster";
+      }
+      setSelectedMarkerAnnotation(def_anno);
+      setReqAnnotation(def_anno);
+      setSelectedCluster(def_anno);
+    } else if (type === "marker_detection_START") {
+      setSelectedCluster(null);
+      setSelectedClusterIndex([]);
+      setSelectedClusterSummary([]);
+    } else if (type === "marker_detection_DATA") {
+      if (selectedCluster === null) {
+        // show markers for the first cluster
+        if (selectedModality === null) {
+          setSelectedModality(modality[0]);
+        }
+        setSelectedCluster(0);
+      }
+    } else if (type === "embedding_DATA") {
+      if (selectedRedDim === null) {
+        setSelectedRedDim(Object.keys(resp)[0]);
+      }
+
+      setRedDimsData(resp);
+
+      // hide game and all loaders
+      // setShowGame(false);
+      setShowAnimation(false);
+      setTriggerAnimation(false);
+      setShowDimPlotLoader(false);
+    } else if (
+      type === "setMarkersForCluster" ||
+      type === "setMarkersForCustomSelection" ||
+      type === "computeVersusSelections" ||
+      type === "computeVersusClusters"
+    ) {
+      let records = [];
+      let index = Array(resp.ordering.length);
+      resp.means.forEach((x, i) => {
+        index[resp.ordering[i]] = i;
+        records.push({
+          gene: resp?.ordering?.[i],
+          mean: isNaN(x) ? 0 : parseFloat(x.toFixed(2)),
+          delta: isNaN(x)
+            ? 0
+            : parseFloat(resp?.delta_detected?.[i].toFixed(2)),
+          lfc: isNaN(x) ? 0 : parseFloat(resp?.lfc?.[i].toFixed(2)),
+          detected: isNaN(x) ? 0 : parseFloat(resp?.detected?.[i].toFixed(2)),
+          expanded: false,
+          expr: null,
+        });
+      });
+      setSelectedClusterIndex(index);
+      setSelectedClusterSummary(records);
+      setShowMarkerLoader(false);
+    } else if (type === "setGeneExpression") {
+      let tmp = [...selectedClusterSummary];
+      const clusterIdx = selectedClusterIndex[resp.gene];
+
+      // Store gene expression data for DimPlot gradient
+      setGeneExprData(Object.values(resp.expr));
+
+      // If gene is in selectedClusterIndex, update the existing entry
+      if (clusterIdx !== undefined && tmp[clusterIdx]) {
+        tmp[clusterIdx].expr = Object.values(resp.expr);
+        setSelectedClusterSummary(tmp);
+      }
+
+      setReqGene(null);
+    } else if (type === "setAnnotation") {
+      let tmp = { ...annotationObj };
+      tmp[resp.annotation] = resp.values;
+      setAnnotationObj(tmp);
+
+      setReqAnnotation(null);
+    } else if (
+      type === "cell_labelling_DATA" ||
+      type === "computeCellAnnotation_DATA"
+    ) {
+      if ("integrated" in resp) {
+        setCellLabelData(resp);
+      }
+      setShowCellLabelLoader(false);
+    } else if (type === "cell_labelling_CACHE") {
+      setShowCellLabelLoader(false);
+    } else if (payload.type === "custom_selections_DATA") {
+    } else if (payload.type === "marker_detection_CACHE") {
+      setShowMarkerLoader(false);
+    } else if (payload.type === "choose_clustering_CACHE") {
+      setShowNClusLoader(false);
+    } else if (type === "feature_set_enrichment_START") {
+      setShowFsetLoader(true);
+    } else if (type === "feature_set_enrichment_CACHE") {
+      setShowFsetLoader(false);
+    } else if (type === "feature_set_enrichment_DATA") {
+      setFsetEnrichDetails(resp);
+      setShowFsetLoader(false);
+    } else if (
+      type === "computeFeaturesetSummary_DATA" ||
+      type === "computeFeaturesetVSSummary_DATA"
+    ) {
+      let tmpsumm = { ...fsetEnirchSummary };
+      tmpsumm[
+        `${selectedFsetAnnotation}-${selectedFsetCluster}-${fsetClusterRank}`
+      ] = resp;
+      setFsetEnrichSummary(tmpsumm);
+
+      let idMax = getMinMax(resp.set_ids);
+      setFeatureScoreCache(new Array(idMax[1]));
+      setFsetGeneIndxCache(new Array(idMax[1]));
+    } else if (type === "setFeatureScores_DATA") {
+      let tmp = [...featureScoreCache];
+      tmp[reqFsetIndex] = resp;
+
+      setFeatureScoreCache(tmp);
+      setReqFsetIndex(null);
+    } else if (type === "setFeatureGeneIndices_DATA") {
+      let tmp = [...fsetGeneIndxCache];
+      tmp[reqFsetGeneIndex] = resp;
+
+      setFsetGeneIndxCache(tmp);
+      setReqFsetGeneIndex(null);
+    } else {
+      // console.info("unknown msg type", payload);
+    }
+  };
+
+  // resize managers for window width
+  const [windowWidth, setWindowWidth] = useState(0);
+
+  // resize markers width
+  const [markersWidth, setMarkersWidth] = useState(360);
+
+  // resize fset width
+  const [fsetWidth, setFsetWidth] = useState(360);
+
+  // set cellann width
+  const [cellAnnWidth, setCellAnnWidth] = useState(360);
+
+  const handleResize = () => {
+    setWindowWidth(window.innerWidth);
+  };
+
+  const getGalleryStyles = () => {
+    if (windowWidth >= 1200) {
+      return {
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+      };
+    } else {
+      return {
+        overflowX: "auto",
+        display: "flex",
+        flexDirection: "row",
+        marginRight: "10px",
+      };
+    }
+  };
+
+  return (
+    <div className="App">
+      <Navbar className={Classes.DARK}>
+        <NavbarGroup align={Alignment.LEFT}>
+          <NavbarHeading>
+            <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }} onClick={resetApp}>
+              <span style={{ fontSize: "18px", fontWeight: "bold", color: "#48AFF0", letterSpacing: "1px" }}>AnnoC</span>
+              <span
+                style={{
+                  fontSize: "8px",
+                }}
+              >
+                v{pkgVersion.version}
+              </span>
+            </div>
+          </NavbarHeading>
+          <NavbarDivider />
+          <span>Single cell cluster annotation</span>
+          <NavbarDivider />
+          <Tooltip2
+            content="Click to modify the dataset title"
+            position={Position.BOTTOM}
+          >
+            <EditableText
+              value={datasetName}
+              intent="primary"
+              onConfirm={(val) => {
+                setDatasetName(val);
+              }}
+              onChange={(val) => {
+                setDatasetName(val);
+              }}
+            />
+          </Tooltip2>
+          <Stats initDims={initDims} qcDims={qcDims} />
+        </NavbarGroup>
+      </Navbar>
+      <SplitPane
+        className="left-sidebar"
+        split="vertical"
+        defaultSize={60}
+        allowResize={false}
+      >
+        <div className="left-sidebar-content">
+          <div className="left-sidebar-content-flex-top">
+            <div
+              className={
+                showPanel === "explore-import"
+                  ? "item-sidebar-intent"
+                  : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Load or select a dataset"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "explore-import" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"folder-open"}
+                    onClick={() => setShowPanel("explore-import")}
+                    intent={showPanel === "explore-import" ? "primary" : "none"}
+                  ></Button>
+                  <span
+                    onClick={() => setShowPanel("explore-import")}
+                    style={{
+                      cursor: "pointer",
+                      color:
+                        showPanel === "explore-import" ? "#184A90" : "black",
+                    }}
+                  >
+                    LOAD
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "explore"
+                  ? "item-sidebar-intent"
+                  : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Explore and visualize data"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "explore" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"eye-open"}
+                    onClick={() => setShowPanel("explore")}
+                    intent={showPanel === "explore" ? "primary" : "none"}
+                    disabled={selectedRedDim === null}
+                  ></Button>
+                  <span
+                    onClick={() => selectedRedDim !== null && setShowPanel("explore")}
+                    style={{
+                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
+                      color: showPanel === "explore" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                    }}
+                  >
+                    EXPLORE
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "dotplot" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Generate dotplot visualizations"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "dotplot" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"dot"}
+                    onClick={() => setShowPanel("dotplot")}
+                    intent={showPanel === "dotplot" ? "primary" : "none"}
+                    disabled={selectedRedDim === null}
+                  ></Button>
+                  <span
+                    onClick={() => selectedRedDim !== null && setShowPanel("dotplot")}
+                    style={{
+                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
+                      color: showPanel === "dotplot" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                    }}
+                  >
+                    DOTPLOT
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "params" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Configure analysis parameters"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "params" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"cog"}
+                    onClick={() => setShowPanel("params")}
+                    intent={showPanel === "params" ? "primary" : "none"}
+                  ></Button>
+                  <span
+                    onClick={() => setShowPanel("params")}
+                    style={{
+                      cursor: "pointer",
+                      color: showPanel === "params" ? "#184A90" : "black",
+                    }}
+                  >
+                    PARAMS
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "logs" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="View analysis logs"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "logs" ? "primary" : "none"}
+              >
+                <div className="item-button-group">
+                  {exploreFiles?.files === null ? (
+                    <Button
+                      outlined={false}
+                      large={false}
+                      minimal={true}
+                      fill={true}
+                      icon={"console"}
+                      onClick={() => setShowLogs(true)}
+                      intent={showPanel === "logs" ? "primary" : "none"}
+                    ></Button>
+                  ) : !showMarkerLoader && !showDimPlotLoader ? (
+                    <Button
+                      outlined={false}
+                      large={false}
+                      minimal={true}
+                      fill={true}
+                      icon={"console"}
+                      onClick={() => setShowLogs(true)}
+                      intent={showPanel === "logs" ? "primary" : "none"}
+                    ></Button>
+                  ) : (
+                    <Button
+                      outlined={false}
+                      large={false}
+                      minimal={true}
+                      fill={true}
+                      onClick={() => setShowLogs(true)}
+                      intent={showPanel === "logs" ? "primary" : "none"}
+                    >
+                      <div style={{ display: "flex" }}>
+                        <Spinner size={20} intent="warning" />
+                      </div>
+                    </Button>
+                  )}
+                  <span
+                    onClick={() => setShowLogs(true)}
+                    style={{
+                      cursor: "pointer",
+                      color: showPanel === "logs" ? "#184A90" : "black",
+                    }}
+                  >
+                    LOGS
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            {/* <Divider /> */}
+          </div>
+          <div className="left-sidebar-content-flex-bottom">
+            {/* <Divider /> */}
+            {/* <div
+              className={
+                showPanel === "info" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Wanna know more about Kana?"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "info" ? "primary" : "none"}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"info-sign"}
+                    onClick={() =>
+                      showPanel !== "info"
+                        ? setShowPanel("info")
+                        : setShowPanel(null)
+                    }
+                    intent={showPanel === "info" ? "primary" : "none"}
+                  ></Button>
+                  <span>INFO</span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider /> */}
+          </div>
+        </div>
+        <div className="App-body">
+          {showPanel === "explore" && (
+            <ResizeSensor onResize={handleResize}>
+              <SplitPane
+                defaultSize={360}
+                split="vertical"
+                primary="second"
+                allowResize={false}
+              >
+                <div
+                  className={
+                    showDimPlotLoader
+                      ? "results-dims effect-opacitygrayscale"
+                      : "results-dims"
+                  }
+                >
+                  {redDimsData && Object.keys(redDimsData).length > 0 && (
+                    <DimPlot
+                      className={"effect-opacitygrayscale"}
+                      redDimsData={redDimsData}
+                      selectedRedDim={selectedRedDim}
+                      setSelectedRedDim={setSelectedRedDim}
+                      showAnimation={showAnimation}
+                      setShowAnimation={setShowAnimation}
+                      animateData={animateData}
+                      setTriggerAnimation={setTriggerAnimation}
+                      selectedClusterSummary={selectedClusterSummary}
+                      setSelectedClusterSummary={setSelectedClusterSummary}
+                      selectedClusterIndex={selectedClusterIndex}
+                      selectedCluster={selectedCluster}
+                      savedPlot={savedPlot}
+                      setSavedPlot={setSavedPlot}
+                      customSelection={customSelection}
+                      setCustomSelection={setCustomSelection}
+                      setGene={setGene}
+                      gene={gene}
+                      setReqGene={setReqGene}
+                      geneExprData={geneExprData}
+                      setDelCustomSelection={setDelCustomSelection}
+                      setReqAnnotation={setReqAnnotation}
+                      selectedPoints={selectedPoints}
+                      setSelectedPoints={setSelectedPoints}
+                      restoreState={restoreState}
+                      setRestoreState={setRestoreState}
+                      setHighlightPoints={setHighlightPoints}
+                      clusHighlight={clusHighlight}
+                      setClusHighlight={setClusHighlight}
+                      clusHighlightLabel={clusHighlightLabel}
+                      setClusHighlightLabel={setClusHighlightLabel}
+                      colorByAnnotation={colorByAnnotation}
+                      setColorByAnnotation={setColorByAnnotation}
+                      selectedModality={selectedModality}
+                      selectedFsetIndex={selectedFsetIndex}
+                      setSelectedFsetIndex={setSelectedFsetIndex}
+                      featureScoreCache={featureScoreCache}
+                      fsetEnirchDetails={fsetEnirchDetails}
+                      selectedDimPlotCluster={selectedDimPlotCluster}
+                      setSelectedDimPlotCluster={setSelectedDimPlotCluster}
+                    />
+                  )}
+                  {(!redDimsData || Object.keys(redDimsData).length === 0) && (
+                    <Callout intent="warning" icon="warning-sign" style={{ margin: "20px" }}>
+                      <p>
+                        <strong>No reduced dimensions available</strong>
+                      </p>
+                      <p>
+                        This dataset does not contain reduced dimensions (e.g., UMAP, t-SNE, spatial coordinates).
+                        Dot plots and heatmaps are still available, but dimension plots are not.
+                      </p>
+                    </Callout>
+                  )}
+                </div>
+                <ClusterAnnotation
+                  scranWorker={scranWorker}
+                  setReqAnnotation={setReqAnnotation}
+                />
+              </SplitPane>
+            </ResizeSensor>
+          )}
+          {(showPanel === null || showPanel === undefined) && (
+            <div className="frontpage">
+              <div style={{ textAlign: "left", alignItems: "flex-start" }}>
+                <H3>Are you new here?</H3>
+              </div>
+              <div className="frontpage-row">
+                <Callout
+                  title="Explore a pre-saved analysis"
+                  onClick={() => setShowPanel("explore-import")}
+                  className="frontpage-rowitem"
+                  icon="plus"
+                  intent="primary"
+                >
+                  <p>
+                    In this mode, <strong>kana</strong> retrieves results from
+                    single-cell datasets stored as RDS or H5AD files.
+                  </p>
+                </Callout>
+              </div>
+            </div>
+          )}
+          {showPanel === "explore-import" && (
+            <div style={{
+              width: "100%",
+              height: "100%",
+              overflowY: "auto",
+              display: "flex",
+              justifyContent: "center",
+              padding: "20px"
+            }}>
+              <div style={{ width: "100%", maxWidth: "1400px" }}>
+                <LoadExplore
+                  setShowPanel={setShowPanel}
+                  selectedFsetModality={selectedFsetModality}
+                  setSelectedFsetModality={setSelectedFsetModality}
+                />
+              </div>
+            </div>
+          )}
+          <div style={{ display: showPanel === "dotplot" ? "block" : "none" }}>
+            <DotPlot
+              scranWorker={scranWorker}
+              selectedModality={selectedModality}
+            />
+          </div>
+          {showPanel === "params" && (
+            <div style={{ padding: "20px" }}>
+              <Callout intent="primary" icon="info-sign">
+                <H3>Analysis Parameters</H3>
+                <p style={{ marginTop: "10px" }}>
+                  This panel is for configuring analysis parameters when running analysis on datasets without pre-computed results.
+                </p>
+                <p style={{ marginTop: "10px" }}>
+                  <strong>Current workflow:</strong>
+                </p>
+                <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                  <li>Go to <strong>LOAD</strong> to select or upload a dataset</li>
+                  <li>If the dataset has no reduced dimensions, click <strong>"Analyze"</strong></li>
+                  <li>The analysis will run with default parameters in your browser</li>
+                  <li>Once complete, use <strong>EXPLORE</strong> to visualize results</li>
+                </ul>
+                <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
+                  Note: Advanced parameter configuration will be available in a future update.
+                </p>
+              </Callout>
+            </div>
+          )}
+        </div>
+      </SplitPane>
+      <Alert
+        canEscapeKeyCancel={false}
+        canOutsideClickCancel={false}
+        confirmButtonText={scranError?.fatal ? "Reload App" : "close"}
+        icon="bug"
+        intent="danger"
+        isOpen={scranError != null}
+        onConfirm={() => {
+          if (scranError?.fatal) {
+            window.location.reload();
+          } else {
+            setScranError(null);
+          }
+        }}
+      >
+        <h3>{scranError?.type.replace("_", " ").toUpperCase()}</h3>
+        <Divider />
+        <p>{scranError?.msg}</p>
+        <Divider />
+        <p>
+          Please provide a reproducible example and report the issue on{" "}
+          <a href="https://github.com/kanaverse/kana/issues" target="_blank">
+            GitHub
+          </a>
+          .
+        </p>
+        <Divider />
+        {scranError?.fatal && (
+          <Button
+            intent="warning"
+            text="Check Logs"
+            onClick={() => setShowLogs(true)}
+          />
+        )}
+      </Alert>
+      <Logs
+        loadingStatus={true}
+        showLogs={showLogs}
+        setShowLogs={setShowLogs}
+        logs={logs}
+      />
+    </div>
+  );
+}

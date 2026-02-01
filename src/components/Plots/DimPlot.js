@@ -1,0 +1,1587 @@
+import React, { useEffect, useRef, useContext, useState, useMemo } from "react";
+import {
+  ControlGroup,
+  Button,
+  Icon,
+  ButtonGroup,
+  Callout,
+  RangeSlider,
+  Divider,
+  Label,
+  Tag,
+  HTMLSelect,
+  Switch,
+  NumericInput,
+  InputGroup,
+  MenuItem,
+} from "@blueprintjs/core";
+import { Tooltip2 } from "@blueprintjs/popover2";
+import { Suggest } from "@blueprintjs/select";
+
+import { AppContext } from "../../context/AppContext";
+import { getFactorsFromArray, getGradient, getMinMax } from "./utils";
+
+import Rainbow from "./rainbowvis";
+import { randomColor } from "randomcolor";
+import { defaultColor } from "./utils";
+
+import "./DimPlot.css";
+import { AppToaster } from "../../AppToaster";
+
+import WebGLVis from "epiviz.gl";
+import { code } from "../../utils/utils";
+import { generateColors } from "./colors";
+import { SVGDimPlot } from "./SVGDimPlot";
+import { get_image_title } from "../Gallery/utils";
+
+const DimPlot = (props) => {
+  const container = useRef();
+  const selector = useRef();
+
+  // ref to the plot object
+  const [scatterplot, setScatterplot] = useState(null);
+  // get closestpoint on viz, to highlight the cluster
+  const [clusHover, setClusHover] = useState(null);
+  // show a gradient on the plot ?
+  const [showGradient, setShowGradient] = useState(false);
+  // expression min & max
+  const [exprMinMax, setExprMinMax] = useState(null);
+  // user selected min and max from UI
+  const [sliderMinMax, setSliderMinMax] = useState(exprMinMax);
+  // gradient scale
+  const [gradient, setGradient] = useState(null);
+  // first render ?
+  const [renderCount, setRenderCount] = useState(true);
+
+  const { genesInfo, geneColSel, annotationCols, annotationObj, appMode, globalClusterOrder } =
+    useContext(AppContext);
+
+  // set mode for plot
+  const [plotMode, setPlotMode] = useState("PAN");
+
+  // choose between categorical vs gradient factors on numerical arrays
+  const [toggleFactorsGradient, setToggleFactorsGradient] = useState(true);
+  // show the toggle
+  const [showToggleFactors, setShowToggleFactors] = useState(false);
+  // the gradient
+  const [factorGradient, setFactorGradient] = useState(null);
+  const [factorsMinMax, setFactorsMinMax] = useState(null);
+  const [sliderFactorsMinMax, setSliderFactorsMinMax] = useState(null);
+  // capture state across annotations
+  const [factorState, setFactorState] = useState({});
+
+  // dim plot color mappins & groups
+  const [plotColorMappings, setPlotColorMappings] = useState(null);
+  const [plotGroups, setPlotGroups] = useState(null);
+  const [plotFactors, setPlotFactors] = useState(null);
+
+  const [cellColorArray, setCellColorArray] = useState(null);
+  const [spec, setSpec] = useState(null);
+
+  // point size
+  const [pointSize, setPointSize] = useState(3);
+
+  // variation feature selector states
+  const [selectedGeneCol, setSelectedGeneCol] = useState(null);
+  const [geneSearchQuery, setGeneSearchQuery] = useState("");
+  const [selectedGeneIndex, setSelectedGeneIndex] = useState(null);
+
+  // const [resizeObserver, setResizeObserver] = useState(null);
+
+  // const [resizeTimeout, setResizeTimeout] = useState(null);
+  let resizeTimeout, resizeObserver;
+
+  const default_cluster = `${code}::CLUSTERS`;
+  const max = annotationObj[default_cluster]
+    ? getMinMax(annotationObj[default_cluster])[1] + 1
+    : 0;
+
+  // if either gene or expression changes, compute gradients and min/max
+  useEffect(() => {
+    if (props?.gene === null || props?.gene === undefined) {
+      setShowGradient(false);
+      setGradient(null);
+      return;
+    }
+
+    // Try to get expression data from geneExprData (variation feature selector)
+    // or from selectedClusterSummary (markers panel)
+    let expr = props?.geneExprData;
+
+    if (!expr) {
+      let index = props?.selectedClusterIndex?.[props?.gene];
+      expr = props?.selectedClusterSummary?.[index]?.expr;
+    }
+
+    if (expr) {
+      let exprMinMax = getMinMax(expr);
+      let val = exprMinMax[1] === 0 ? 0.01 : exprMinMax[1];
+      let tmpgradient = new Rainbow();
+      tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+      tmpgradient.setNumberRange(0, val);
+      if (exprMinMax[0] !== exprMinMax[1]) {
+        setShowGradient(true);
+        setSliderMinMax([0, val]);
+        setExprMinMax([0, val]);
+      } else {
+        setShowGradient(false);
+        AppToaster.show({
+          icon: "warning-sign",
+          intent: "warning",
+          message: `${
+            genesInfo[geneColSel[props?.selectedModality]][props?.gene]
+          } is not expressed in any cell (mean = 0)`,
+        });
+      }
+      setGradient(tmpgradient);
+    }
+  }, [
+    props?.selectedClusterIndex?.[props?.gene],
+    props?.selectedClusterSummary?.[props?.selectedClusterIndex?.[props?.gene]]
+      ?.expr,
+    props?.gene,
+    props?.geneExprData,
+  ]);
+
+  // if feature set score gradient is enabled
+  useEffect(() => {
+    if (
+      props?.selectedFsetIndex === null ||
+      props?.selectedFsetIndex === undefined ||
+      props?.fsetEnirchDetails === null ||
+      props?.fsetEnirchDetails === undefined
+    ) {
+      setShowGradient(false);
+      setGradient(null);
+      return;
+    }
+
+    let scores = props?.featureScoreCache?.[props?.selectedFsetIndex]?.scores;
+
+    if (scores) {
+      let exprMinMax = getMinMax(scores);
+      let val = exprMinMax[1] === 0 ? 0.01 : exprMinMax[1];
+      let tmpgradient = new Rainbow();
+      tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+      tmpgradient.setNumberRange(0, val);
+      if (exprMinMax[0] !== exprMinMax[1]) {
+        setShowGradient(true);
+        setSliderMinMax([0, val]);
+        setExprMinMax([0, val]);
+      } else {
+        setShowGradient(false);
+        // AppToaster.show({
+        //   icon: "warning-sign",
+        //   intent: "warning",
+        //   message: `${
+        //     props?.fsetEnirchDetails[props?.selectedFsetColl].names[
+        //       props?.selectedFsetIndex
+        //     ]
+        //   } has no scores`,
+        // });
+      }
+      setGradient(tmpgradient);
+    }
+  }, [
+    props?.fsetEnirchDetails,
+    props?.selectedFsetIndex,
+    props?.featureScoreCache?.[props?.selectedFsetIndex],
+  ]);
+
+  // hook to also react when user changes the slider for expression
+  useEffect(() => {
+    if (Array.isArray(sliderMinMax)) {
+      let tmpgradient = new Rainbow();
+      tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+      tmpgradient.setNumberRange(sliderMinMax[0], sliderMinMax[1] + 0.00001);
+      setGradient(tmpgradient);
+      setShowGradient(true);
+    }
+  }, [sliderMinMax]);
+
+  // hook to also react when user changes the slider for annotations
+  useEffect(() => {
+    if (Array.isArray(sliderFactorsMinMax)) {
+      let tmpgradient = getGradient(
+        sliderFactorsMinMax[0],
+        sliderFactorsMinMax[1] + 0.00001
+      );
+      setFactorGradient(tmpgradient);
+    }
+  }, [sliderFactorsMinMax]);
+
+  useEffect(() => {
+    if (Array.isArray(factorsMinMax)) setSliderFactorsMinMax(factorsMinMax);
+  }, [factorsMinMax]);
+
+  useEffect(() => {
+    const containerEl = container.current;
+
+    if (containerEl) {
+      let data = null;
+
+      if (props?.showAnimation) {
+        data = props?.animateData;
+      } else {
+        data = props?.redDimsData[props?.selectedRedDim];
+      }
+
+      // if dimensions are available
+      if (data && plotFactors && plotColorMappings) {
+        const cluster_mappings = [...plotFactors];
+        const cluster_colors = [...plotColorMappings];
+
+        let tmp_scatterplot = scatterplot;
+        // only create the plot object once
+        if (!tmp_scatterplot) {
+          const containerEl = container.current;
+
+          tmp_scatterplot = new WebGLVis(containerEl);
+          tmp_scatterplot.addToDom();
+          setScatterplot(tmp_scatterplot);
+        }
+
+        tmp_scatterplot.dataWorker.onmessage = (message) => {
+          if (message.data.type === "getClosestPoint") {
+            if (message.data.closestPoint === undefined) {
+              return;
+            }
+            let hdata = message.data;
+            if (hdata?.distance <= 1.5) {
+              setClusHover(cluster_mappings[hdata?.indices?.[0]]);
+            } else {
+              setClusHover(null);
+            }
+          } else if (message.data.type === "getClickPoint") {
+            if (message.data.closestPoint === undefined) {
+              return;
+            }
+            let hdata = message.data;
+            if (hdata?.distance <= 1.5) {
+              if (
+                props?.clusHighlight == cluster_mappings[hdata?.indices?.[0]]
+              ) {
+                props?.setClusHighlight(null);
+                props?.setClusHighlightLabel(null);
+                props?.setHighlightPoints(null);
+              } else {
+                props?.setClusHighlight(cluster_mappings[hdata?.indices?.[0]]);
+                props?.setClusHighlightLabel(
+                  plotGroups[cluster_mappings[hdata?.indices?.[0]]]
+                );
+                let clus_indices = [];
+                for (let i = 0; i < plotFactors.length; i++) {
+                  if (cluster_mappings[hdata?.indices?.[0]] == plotFactors[i]) {
+                    clus_indices.push(i);
+                  }
+                }
+                props?.setHighlightPoints(clus_indices);
+              }
+            } else {
+              props?.setClusHighlight(null);
+              props?.setClusHighlightLabel(null);
+              props?.setHighlightPoints(null);
+            }
+          } else if (
+            message.data.type === "selectBox" ||
+            message.data.type === "selectLasso"
+          ) {
+            message.data.selection?.indices.length > 0 &&
+              props?.setSelectedPoints(message.data.selection?.indices);
+            // tmp_scatterplot.dataWorker.dataWorkerStream.push(message);
+            tmp_scatterplot.dataWorkerStream.push(message);
+          }
+        };
+
+        // coloring cells on the plot
+        // by default chooses the cluster assigned color for the plot
+        // if a gradient bar is available, sets gradient
+        // if a cluster is highlighted, grays out all other cells except the cells
+        // in the cluster or selection
+        // priority of rendering
+        // gradient selection > cluster selection > graying out
+        // an initial implementation also used a per cluster gradient to color cells
+        // by expression, commmented out
+        let plot_colors = [];
+
+        function get_dot_color(i) {
+          let color;
+          if (
+            props?.clusHighlight != null &&
+            String(props?.clusHighlight).startsWith("cs")
+          ) {
+            let tmpclus = parseInt(props?.clusHighlight.replace("cs", ""));
+            color = cluster_colors[max + tmpclus - 1];
+          } else {
+            if (!toggleFactorsGradient && factorGradient) {
+              color =
+                "#" + factorGradient.colorAt(parseFloat(cluster_mappings[i]));
+              return color;
+            }
+            color = cluster_colors[cluster_mappings[i]];
+          }
+
+          return color;
+        }
+
+        for (let i = 0; i < data.x.length; i++) {
+          if (props?.selectedPoints && props?.selectedPoints.length > 0) {
+            if (props?.selectedPoints.includes(i)) {
+              plot_colors[i] = get_dot_color(i);
+            } else {
+              plot_colors[i] = "#EDEFF2";
+            }
+
+            continue;
+          }
+
+          if (props?.clusHighlight != null) {
+            if (!String(props?.clusHighlight).startsWith("cs")) {
+              if (props?.clusHighlight !== cluster_mappings[i]) {
+                plot_colors[i] = "#D3D3D3";
+                continue;
+              }
+            } else {
+              if (!props?.customSelection[props?.clusHighlight].includes(i)) {
+                plot_colors[i] = "#D3D3D3";
+                continue;
+              }
+            }
+          }
+
+          if (props?.gene !== null && props?.gene !== undefined) {
+            // Try to get expression data from geneExprData (variation feature selector)
+            // or from selectedClusterSummary (markers panel)
+            let expr = props?.geneExprData;
+
+            if (!expr) {
+              let index = props?.selectedClusterIndex?.[props?.gene];
+              expr = props?.selectedClusterSummary?.[index]?.expr;
+            }
+
+            if (Array.isArray(expr) && gradient) {
+              plot_colors[i] = "#" + gradient.colorAt(expr?.[i]);
+              continue;
+              // if we want per cell gradient
+              // let colorGradients = cluster_colors.map(x => {
+              //     var gradient = new Rainbow();
+              //     gradient.setSpectrum('#D3D3D3', x);
+              //     let val = exprMinMax[1] === 0 ? 0.01 : exprMinMax[1];
+              //     gradient.setNumberRange(0, val);
+              //     return gradient;
+              // });
+
+              // return "#" + colorGradients[cluster_mappings[i]].colorAt(props?.selectedClusterSummary?.[gene]?.expr?.[i])
+            }
+          }
+
+          if (
+            props?.selectedFsetIndex !== null &&
+            props?.selectedFsetIndex !== undefined &&
+            (props?.featureScoreCache?.[props?.selectedFsetIndex] !== null ||
+              props?.featureScoreCache?.[props?.selectedFsetIndex] !==
+                undefined)
+          ) {
+            let scores =
+              props?.featureScoreCache?.[props?.selectedFsetIndex]?.scores;
+
+            if (scores && gradient) {
+              plot_colors[i] = "#" + gradient.colorAt(scores[i]);
+              continue;
+            }
+          }
+
+          plot_colors[i] = get_dot_color(i);
+        }
+
+        setCellColorArray(plot_colors);
+
+        let xMinMax = getMinMax(data.x);
+        let yMinMax = getMinMax(data.y);
+        let xDomain = [
+          xMinMax[0] - Math.abs(0.25 * xMinMax[0]),
+          xMinMax[1] + Math.abs(0.25 * xMinMax[1]),
+        ];
+        let yDomain = [
+          yMinMax[0] - Math.abs(0.25 * yMinMax[0]),
+          yMinMax[1] + Math.abs(0.25 * yMinMax[1]),
+        ];
+
+        let aspRatio = (containerEl.clientWidth / containerEl.clientHeight) | 1;
+
+        let xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
+        let yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
+
+        if (aspRatio > 1) {
+          xBound = xBound * aspRatio;
+        } else {
+          yBound = yBound / aspRatio;
+        }
+
+        let tspec = {
+          defaultData: {
+            x: data.x,
+            y: data.y,
+            color: plot_colors,
+          },
+          xAxis: "none",
+          yAxis: "none",
+          tracks: [
+            {
+              mark: "point",
+              x: {
+                attribute: "x",
+                type: "quantitative",
+                domain: [-xBound, xBound],
+              },
+              y: {
+                attribute: "y",
+                type: "quantitative",
+                domain: [-yBound, yBound],
+              },
+              color: {
+                attribute: "color",
+                type: "inline",
+              },
+              size: { value: pointSize },
+              opacity: { value: 0.8 },
+            },
+          ],
+        };
+
+        setSpec(tspec);
+
+        function updatePlot() {
+          let uspec = { ...tspec };
+
+          tmp_scatterplot.setCanvasSize(
+            containerEl.parentNode.clientWidth,
+            containerEl.parentNode.clientHeight
+          );
+
+          aspRatio = (containerEl.clientWidth / containerEl.clientHeight) | 1;
+
+          xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
+          yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
+
+          if (aspRatio > 1) {
+            xBound = xBound * aspRatio;
+          } else {
+            yBound = yBound / aspRatio;
+          }
+
+          uspec["tracks"][0].x.domain = [-xBound, xBound];
+          uspec["tracks"][0].y.domain = [-yBound, yBound];
+          uspec["tracks"][0].size.value = pointSize;
+
+          tmp_scatterplot.setSpecification(uspec);
+          setSpec(uspec);
+        }
+
+        if (window.scatterplotresizeObserver) {
+          window.scatterplotresizeObserver.disconnect();
+        }
+
+        window.scatterplotresizeObserver = new ResizeObserver(() => {
+          // props?.setGene(null);
+          // setShowToggleFactors(false);
+          // setFactorsMinMax(null);
+          // props?.setClusHighlight(null);
+          // props?.setHighlightPoints(null);
+          // props?.setClusHighlightLabel(null);
+          updatePlot();
+        });
+
+        window.scatterplotresizeObserver.observe(containerEl);
+        if (renderCount) {
+          tmp_scatterplot.setSpecification(tspec);
+          setRenderCount(false);
+          // setResizeObserver(tresizeObserver);
+
+          // window.addEventListener("resize", function() {
+          //     // similar to what we do in epiviz
+          //     // if (resizeTimeout) {
+          //     //     clearTimeout(resizeTimeout);
+          //     // }
+
+          //     // resizeTimeout = setTimeout(function(){
+          //     //     console.log("inside window resize ?");
+          //     //     updatePlot()
+          //     // }.bind(self), 500);
+          //     // updatePlot.bind(self)();
+          // }.bind(self));
+        } else {
+          tmp_scatterplot.setSpecification(tspec);
+        }
+      }
+    }
+  }, [
+    pointSize,
+    props?.redDimsData,
+    props?.animateData,
+    props?.selectedRedDim,
+    gradient,
+    factorGradient,
+    props?.clusHighlight,
+    plotColorMappings,
+    plotGroups,
+    plotFactors,
+    showToggleFactors,
+    props?.selectedPoints,
+    props?.featureScoreCache?.[props?.selectedFsetIndex],
+    props?.geneExprData,
+  ]);
+
+  useEffect(() => {
+    if (props?.colorByAnnotation === `${code}::CLUSTERS`) {
+      setPlotColorMappings(props?.clusterColors);
+      let clus_names = [];
+      for (let i = 0; i < max; i++) {
+        clus_names.push(`Cluster ${i + 1}`);
+      }
+      setPlotGroups(clus_names);
+      setPlotFactors(annotationObj[default_cluster]);
+
+      setShowToggleFactors(false);
+      setToggleFactorsGradient(true);
+    } else {
+      if (!(props?.colorByAnnotation in annotationObj)) {
+        props?.setReqAnnotation(props?.colorByAnnotation);
+      } else {
+        let tmp = annotationObj[props?.colorByAnnotation];
+        let cluster_colors;
+
+        if (annotationCols[props?.colorByAnnotation].type !== "continuous") {
+          let levels, indices;
+          if (tmp.type === "array") {
+            let state = factorState[props?.colorByAnnotation];
+            if (state == undefined || state == null) {
+              state = true;
+            }
+            setToggleFactorsGradient(state);
+
+            if (!state) {
+              const [minTmp, maxTmp] = getMinMax(tmp.values);
+              setFactorsMinMax([minTmp, maxTmp]);
+
+              let tmpgradient = getGradient(minTmp, maxTmp);
+              setFactorGradient(tmpgradient);
+            }
+
+            setShowToggleFactors(true);
+            let result = getFactorsFromArray(tmp.values);
+            levels = result.levels;
+            indices = result.indices;
+          } else {
+            setShowToggleFactors(false);
+            setToggleFactorsGradient(true);
+            levels = tmp.levels;
+            indices = tmp.index;
+          }
+
+          // Apply globalClusterOrder if available for this annotation
+          if (globalClusterOrder && globalClusterOrder[props?.colorByAnnotation]) {
+            const desiredOrder = globalClusterOrder[props?.colorByAnnotation];
+            const oldToNew = {};
+            const newLevels = [];
+
+            // Build new levels array in desired order
+            desiredOrder.forEach((cluster, newIdx) => {
+              const oldIdx = levels.indexOf(String(cluster));
+              if (oldIdx !== -1) {
+                oldToNew[oldIdx] = newIdx;
+                newLevels.push(levels[oldIdx]);
+              }
+            });
+
+            // Remap indices
+            const newIndices = indices.map(oldIdx => oldToNew[oldIdx] !== undefined ? oldToNew[oldIdx] : oldIdx);
+
+            levels = newLevels;
+            indices = newIndices;
+          }
+
+          cluster_colors = generateColors(levels.length + 1);
+
+          setPlotGroups(levels);
+          setPlotFactors(indices);
+          setPlotColorMappings(cluster_colors);
+        } else {
+          const [minTmp, maxTmp] = getMinMax(tmp.values);
+          setFactorsMinMax([minTmp, maxTmp]);
+
+          let tmpgradient = getGradient(minTmp, maxTmp);
+          setFactorGradient(tmpgradient);
+
+          setShowToggleFactors(false);
+          setToggleFactorsGradient(false);
+
+          let { levels, indices } = getFactorsFromArray(tmp.values);
+
+          cluster_colors = generateColors(levels.length + 1);
+
+          setPlotGroups(levels);
+          setPlotFactors(indices);
+          setPlotColorMappings(cluster_colors);
+        }
+      }
+    }
+  }, [
+    props?.colorByAnnotation,
+    annotationObj,
+    props?.clusterData,
+    props?.clusterColors,
+    showToggleFactors,
+    toggleFactorsGradient,
+    globalClusterOrder,
+  ]);
+
+  const setInteraction = (x) => {
+    if (x === "SELECT") {
+      scatterplot.setViewOptions({ tool: "lasso" });
+      setPlotMode("SELECT");
+    } else {
+      scatterplot.setViewOptions({ tool: "pan" });
+      setPlotMode("PAN");
+    }
+  };
+
+  const clearPoints = () => {
+    props?.setSelectedPoints(null);
+    scatterplot.clearSelection();
+  };
+
+  // save use selected selection of cells
+  const savePoints = () => {
+    // generate random color
+    let color = randomColor({ luminosity: "dark", count: 1 });
+    if (props?.clusterColors) {
+      let tmpcolor = [...props?.clusterColors];
+      tmpcolor.push(color[0]);
+      props?.setClusterColors(tmpcolor);
+    }
+
+    let tmpcolors = [...plotColorMappings];
+    tmpcolors.push(color[0]);
+    setPlotColorMappings(tmpcolors);
+
+    let cid = Object.keys(props?.customSelection).length;
+    let tmpSelection = { ...props?.customSelection };
+    tmpSelection[`cs${cid + 1}`] = props?.selectedPoints?.sort((a, b) => {
+      return a - b;
+    });
+    props?.setCustomSelection(tmpSelection);
+
+    props?.setSelectedPoints(null);
+    scatterplot.clearSelection();
+  };
+
+  // hook to restore state
+  useEffect(() => {
+    if (props?.restoreState) {
+      let { config } = props?.restoreState;
+      if (config) {
+        props?.setSelectedRedDim(config?.embedding);
+        props?.setClusHighlight(config?.highlight);
+        // props?.setClusHighlightLabel(null);
+
+        if (config?.geneIdx === null || config?.gene === undefined) {
+          props?.setGene(null);
+        } else {
+          props?.setGene(config?.geneIdx);
+        }
+
+        if (config?.annotation) {
+          props?.setColorByAnnotation(config?.annotation);
+          if (config?.annotation === "clusters") {
+            // set ref to HTMLSelect
+            selector.current.value = "CLUSTERS";
+          } else {
+            selector.current.value = config?.annotation;
+          }
+        } else {
+          props?.setColorByAnnotation("clusters");
+          // set ref to HTMLSelect
+          selector.current.value = "CLUSTERS";
+        }
+
+        selector.current.dispatchEvent(new Event("change"));
+        // other state based changes
+        setShowToggleFactors(false);
+        setFactorsMinMax(null);
+        props?.setClusHighlight(null);
+        // props?.setClusHighlightLabel(null);
+
+        let state = factorState[props?.colorByAnnotation];
+        if (state == undefined || state == null) {
+          state = true;
+        }
+        setToggleFactorsGradient(state);
+      }
+    }
+  }, [props?.restoreState]);
+
+  function handleSaveEmbedding() {
+    const containerEl = container.current;
+    if (containerEl) {
+      // const iData = scatterplot.canvas.toDataURL();
+
+      let config = {
+        color: cellColorArray,
+        coords: props?.redDimsData[props?.selectedRedDim],
+        config: {
+          colorArray: cellColorArray,
+          embedding: JSON.parse(JSON.stringify(props?.selectedRedDim)),
+          annotation: JSON.parse(JSON.stringify(props?.colorByAnnotation)),
+          highlight: plotGroups[props?.clusHighlight]
+            ? JSON.parse(JSON.stringify(plotGroups[props?.clusHighlight]))
+            : plotGroups[props?.clusHighlight],
+          gene: props?.gene
+            ? JSON.parse(
+                JSON.stringify(
+                  genesInfo[geneColSel[props?.selectedModality]][props?.gene]
+                )
+              )
+            : null,
+          geneIdx: props?.gene,
+        },
+      };
+
+      if (showGradient) {
+        if (
+          props?.selectedFsetIndex !== null &&
+          props?.selectedFsetIndex !== undefined
+        ) {
+          config["gradient"] = {
+            factors: exprMinMax,
+            slider: sliderMinMax,
+            type: "single",
+          };
+        } else if (props?.gene !== null && props?.gene !== undefined) {
+          config["gradient"] = {
+            factors: exprMinMax,
+            slider: sliderMinMax,
+            type: "single",
+          };
+        }
+      } else {
+        if (!toggleFactorsGradient) {
+          config["gradient"] = {
+            factors: factorsMinMax,
+            slider: sliderFactorsMinMax,
+            type: "multi",
+          };
+        } else {
+          config["labels"] = {
+            labels: plotGroups,
+            colors: plotColorMappings,
+          };
+        }
+      }
+
+      let tmp = [...props?.savedPlot];
+      tmp.push(config);
+
+      props?.setSavedPlot(tmp);
+    }
+  }
+
+  function handleSavePNG() {
+    const containerEl = container.current;
+    if (containerEl) {
+      // const iData = scatterplot.canvas.toDataURL();
+
+      let config = {
+        color: cellColorArray,
+        coords: props?.redDimsData[props?.selectedRedDim],
+        config: {
+          colorArray: cellColorArray,
+          embedding: JSON.parse(JSON.stringify(props?.selectedRedDim)),
+          annotation: JSON.parse(JSON.stringify(props?.colorByAnnotation)),
+          highlight: plotGroups[props?.clusHighlight]
+            ? JSON.parse(JSON.stringify(plotGroups[props?.clusHighlight]))
+            : plotGroups[props?.clusHighlight],
+          gene: props?.gene
+            ? JSON.parse(
+                JSON.stringify(
+                  genesInfo[geneColSel[props?.selectedModality]][props?.gene]
+                )
+              )
+            : null,
+          geneIdx: props?.gene,
+        },
+      };
+
+      if (showGradient) {
+        if (
+          props?.selectedFsetIndex !== null &&
+          props?.selectedFsetIndex !== undefined
+        ) {
+          config["gradient"] = {
+            factors: exprMinMax,
+            slider: sliderMinMax,
+            type: "single",
+          };
+        } else if (props?.gene !== null && props?.gene !== undefined) {
+          config["gradient"] = {
+            factors: exprMinMax,
+            slider: sliderMinMax,
+            type: "single",
+          };
+        }
+      } else {
+        if (!toggleFactorsGradient) {
+          config["gradient"] = {
+            factors: factorsMinMax,
+            slider: sliderFactorsMinMax,
+            type: "multi",
+          };
+        } else {
+          config["labels"] = {
+            labels: plotGroups,
+            colors: plotColorMappings,
+          };
+        }
+      }
+
+      let tmpsvg = SVGDimPlot(
+        config?.color,
+        config?.coords,
+        config?.labels,
+        config?.gradient
+      );
+
+      let tmpLink = document.createElement("a");
+      let fileNew = new Blob([tmpsvg], {
+        type: "text/svg",
+      });
+
+      tmpLink.href = URL.createObjectURL(fileNew);
+      tmpLink.download = `${get_image_title(config)}.svg`;
+      tmpLink.click();
+
+      tmpLink.remove();
+    }
+  }
+
+  // useEffect(() => {
+  //   if (props?.clusHighlight !== null) {
+  //     if (plotFactors) {
+  //       let clus_indices = [];
+  //       for (let i = 0; i < plotFactors.length; i++) {
+  //         if (props?.clusHighlight == plotFactors[i]) {
+  //           clus_indices.push(i);
+  //         }
+  //       }
+  //       props?.setHighlightPoints(clus_indices);
+  //     }
+  //   } else {
+  //     props?.setHighlightPoints(null);
+  //   }
+  // }, [props?.clusHighlight]);
+
+  const suppliedCols = useMemo(() => {
+    return Object.keys(annotationCols).filter(
+      (x) =>
+        !annotationCols[x].name.startsWith(code) &&
+        annotationCols[x].name !== "__batch__"
+      // ? annotationCols[x]["type"] === "continuous"
+      //   ? true
+      //   : !annotationCols[x]["truncated"]
+      // : false
+    );
+  }, [annotationCols]);
+
+  const computedCols = useMemo(() => {
+    return Object.keys(annotationCols).filter(
+      (x) =>
+        annotationCols[x].name.startsWith(code) ||
+        annotationCols[x].name === "__batch__"
+    );
+  }, [annotationCols]);
+
+  // Initialize selectedGeneCol with rowNames if available, otherwise first column
+  useEffect(() => {
+    if (genesInfo && Object.keys(genesInfo).length > 0 && !selectedGeneCol) {
+      const geneColumns = Object.keys(genesInfo);
+      // Prefer rowNames if it exists, otherwise use first column
+      const defaultCol = geneColumns.includes('rowNames') ? 'rowNames' : geneColumns[0];
+      setSelectedGeneCol(defaultCol);
+    }
+  }, [genesInfo, selectedGeneCol]);
+
+  // Create gene list for autocomplete
+  const geneList = useMemo(() => {
+    if (!genesInfo || !selectedGeneCol || !genesInfo[selectedGeneCol]) {
+      return [];
+    }
+    return genesInfo[selectedGeneCol].map((geneName, index) => ({
+      name: geneName,
+      index: index,
+    }));
+  }, [genesInfo, selectedGeneCol]);
+
+  // Filter genes based on search query
+  const filteredGenes = useMemo(() => {
+    if (!geneSearchQuery) return geneList;
+    const query = geneSearchQuery.toLowerCase();
+    return geneList.filter((gene) =>
+      gene.name.toLowerCase().includes(query)
+    );
+  }, [geneList, geneSearchQuery]);
+
+  // When a gene is selected, set it via props.setGene
+  const handleGeneSelect = (gene) => {
+    setSelectedGeneIndex(gene.index);
+    setGeneSearchQuery(gene.name);
+    if (props?.setGene) {
+      props.setGene(gene.index);
+    }
+    // Always request gene expression data for variation feature selector
+    if (props?.setReqGene) {
+      props.setReqGene(gene.index);
+    }
+  };
+
+  return (
+    <div className="scatter-plot">
+      <div className="dimplot-top-header">
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "15px" }}>
+          {/* Reduction Selector */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <span style={{ fontSize: "12px", fontWeight: "500" }}>Reduction</span>
+            {props?.redDimsData && Object.keys(props?.redDimsData).length > 0 && (
+              <HTMLSelect
+                value={props?.selectedRedDim || ""}
+                onChange={(e) => props?.setSelectedRedDim(e.target.value)}
+              >
+                {Object.keys(props?.redDimsData).map((x, i) => (
+                  <option key={i} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </HTMLSelect>
+            )}
+          </div>
+
+          {/* Variation Feature Selector */}
+          {genesInfo && Object.keys(genesInfo).length > 0 && (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "12px", fontWeight: "500" }}>Feature Column</span>
+                <HTMLSelect
+                  value={selectedGeneCol || ""}
+                  onChange={(e) => {
+                    setSelectedGeneCol(e.target.value);
+                    setGeneSearchQuery("");
+                    setSelectedGeneIndex(null);
+                    if (props?.setGene) {
+                      props.setGene(null);
+                    }
+                  }}
+                >
+                  {Object.keys(genesInfo).map((col) => (
+                    <option key={col} value={col}>
+                      {col}
+                    </option>
+                  ))}
+                </HTMLSelect>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "12px", fontWeight: "500" }}>Gene Search</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <div style={{ width: "165px" }}>
+                    <Suggest
+                      items={filteredGenes}
+                      itemRenderer={(gene, { handleClick, modifiers }) => (
+                        <MenuItem
+                          key={gene.index}
+                          text={gene.name}
+                          onClick={handleClick}
+                          active={modifiers.active}
+                        />
+                      )}
+                      onItemSelect={handleGeneSelect}
+                      inputValueRenderer={(gene) => gene.name}
+                      itemPredicate={(query, gene) => {
+                        return gene.name.toLowerCase().includes(query.toLowerCase());
+                      }}
+                      query={geneSearchQuery}
+                      onQueryChange={(query) => setGeneSearchQuery(query)}
+                      inputProps={{
+                        placeholder: "Search for a gene...",
+                        leftIcon: "search",
+                      }}
+                      popoverProps={{
+                        minimal: true,
+                        matchTargetWidth: true,
+                      }}
+                      fill={true}
+                    />
+                  </div>
+
+                  {selectedGeneIndex !== null && (
+                    <Button
+                      icon="cross"
+                      minimal={true}
+                      onClick={() => {
+                        setSelectedGeneIndex(null);
+                        setGeneSearchQuery("");
+                        if (props?.setGene) {
+                          props.setGene(null);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <ControlGroup fill={false} vertical={false}>
+          {appMode == "analysis" && (
+            <Tooltip2 content="Interactively visualize embeddings from each step">
+              <Button
+                icon="play"
+                onClick={() => {
+                  props?.setShowAnimation(true);
+                  props?.setTriggerAnimation(true);
+                }}
+              >
+                Animate
+              </Button>
+            </Tooltip2>
+          )}
+          <Tooltip2 content="Make custom selection of cells">
+            <Button
+              active={plotMode === "SELECT"}
+              intent={plotMode === "SELECT" ? "primary" : "none"}
+              icon="widget"
+              onClick={(x) => setInteraction("SELECT")}
+            >
+              Selection
+            </Button>
+          </Tooltip2>
+        </ControlGroup>
+      </div>
+
+      {props?.showAnimation ? (
+        <Label className="iter">
+          Iteration: {props?.animateData?.iteration}
+        </Label>
+      ) : (
+        ""
+      )}
+      <div className="dim-plot">
+        {props?.selectedRedDim ? (
+          <div
+            ref={container}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          ></div>
+        ) : (
+          "Choose an Embedding... or Embeddings are being computed..."
+        )}
+      </div>
+      <div className="dimplot-right-sidebar">
+            <div className="dimplot-right-sidebar-cluster">
+              <Callout>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    // flexWrap: "wrap",
+                    width: "100%",
+                    fontSize: "x-small",
+                    gap: "2px",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  <Label style={{ marginBottom: "0" }}>
+                    Choose annotation
+                    {props?.selectedDimPlotCluster && (
+                    <HTMLSelect
+                      disabled={showGradient === true}
+                      elementRef={selector}
+                      large={false}
+                      minimal={true}
+                      defaultValue={props?.selectedDimPlotCluster}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (!value) return;
+
+                        props?.setColorByAnnotation(value);
+                        setShowToggleFactors(false);
+                        setFactorsMinMax(null);
+                        props?.setClusHighlight(null);
+                        props?.setHighlightPoints(null);
+                        props?.setClusHighlightLabel(null);
+
+                        let state = factorState[props?.colorByAnnotation];
+                        if (state == undefined || state == null) {
+                          state = true;
+                        }
+                        setToggleFactorsGradient(state);
+
+                        props?.setSelectedDimPlotCluster(value);
+                      }}
+                    >
+                      {suppliedCols &&
+                        Array.isArray(suppliedCols) &&
+                        suppliedCols.length > 0 && (
+                          <optgroup label="Supplied">
+                            {suppliedCols.map((x) => (
+                              <option value={x} key={x}>
+                                {x}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+
+                      {computedCols &&
+                        Array.isArray(computedCols) &&
+                        computedCols.length > 0 && (
+                          <optgroup label="Computed">
+                            {computedCols.map((x) => (
+                              <option value={x} key={x}>
+                                {x.replace(`${code}::`, "")}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                    </HTMLSelect>
+                  )}
+                </Label>
+                {showToggleFactors && (
+                  <>
+                    <Divider />
+                    <Switch
+                      disabled={showGradient === true}
+                      large={false}
+                      inline={true}
+                      checked={toggleFactorsGradient}
+                      innerLabelChecked="yes"
+                      innerLabel="no"
+                      label="categorical"
+                      onChange={(e) => {
+                        setToggleFactorsGradient(e.target.checked);
+                        let tmpState = { ...factorState };
+                        tmpState[props?.colorByAnnotation] = e.target.checked;
+                        setFactorState(tmpState);
+                        props?.setClusHighlight(null);
+                        props?.setHighlightPoints(null);
+                        props?.setClusHighlightLabel(null);
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+              {toggleFactorsGradient ? (
+                <ul style={{ fontSize: "small" }}>
+                  {plotGroups &&
+                    plotGroups.map((x, i) => {
+                      return (
+                        <li
+                          key={i}
+                          className={
+                            clusHover === i ||
+                            props?.clusHighlight === i
+                              ? "legend-highlight"
+                              : ""
+                          }
+                          style={{
+                            color: plotColorMappings[i],
+                          }}
+                          onClick={() => {
+                            if (i === props?.clusHighlight) {
+                              props?.setClusHighlight(null);
+                              props?.setHighlightPoints(null);
+                              props?.setClusHighlightLabel(null);
+                            } else {
+                              let tclus = i;
+                              props?.setClusHighlight(tclus);
+                              let clus_indices = [];
+                              for (let i = 0; i < plotFactors.length; i++) {
+                                if (tclus == plotFactors[i]) {
+                                  clus_indices.push(i);
+                                }
+                              }
+                              props?.setHighlightPoints(clus_indices);
+                              props?.setClusHighlightLabel(x);
+                            }
+                          }}
+                        >
+                          {x !== null && x !== undefined ? x : "NA"}
+                        </li>
+                      );
+                    })}
+                </ul>
+              ) : (
+                factorsMinMax &&
+                sliderFactorsMinMax && (
+                  <div className="dim-slider-container">
+                    <div className="dim-slider-gradient">
+                      <div
+                        style={{
+                          backgroundImage: `linear-gradient(to right, #F5F8FA ${
+                            ((sliderFactorsMinMax[0] - factorsMinMax[0]) *
+                              100) /
+                            (factorsMinMax[1] - factorsMinMax[0])
+                          }%, ${
+                            ((sliderFactorsMinMax[1] +
+                              sliderFactorsMinMax[0] -
+                              2 * factorsMinMax[0]) *
+                              100) /
+                            (2 * (factorsMinMax[1] - factorsMinMax[0]))
+                          }%, #2965CC ${
+                            100 -
+                            ((factorsMinMax[1] - sliderFactorsMinMax[1]) *
+                              100) /
+                              (factorsMinMax[1] - factorsMinMax[0])
+                          }%)`,
+                          width: "145px",
+                          height: "15px",
+                          marginLeft: "4px",
+                        }}
+                      ></div>
+                      &nbsp;
+                    </div>
+                    <div className="dim-range-slider">
+                      <RangeSlider
+                        disabled={showGradient === true}
+                        min={factorsMinMax[0]}
+                        max={factorsMinMax[1]}
+                        stepSize={Math.max(
+                          Math.round(factorsMinMax[1] - factorsMinMax[0]) / 50,
+                          0.0001
+                        )}
+                        labelValues={factorsMinMax}
+                        onChange={(range) => {
+                          setSliderFactorsMinMax(range);
+                        }}
+                        value={sliderFactorsMinMax}
+                        vertical={false}
+                      />
+                    </div>
+                  </div>
+                )
+              )}
+            </Callout>
+            {Object.keys(props?.customSelection).length > 0 ||
+            (props?.selectedPoints && props?.selectedPoints.length > 0) ? (
+              <>
+                <Divider />
+                <Callout>
+                  <p>
+                    <strong>Custom Selections</strong>
+                  </p>
+                  <div
+                    style={{
+                      fontSize: "small",
+                    }}
+                  >
+                    <ul>
+                      {Object.keys(props?.customSelection).map((x, i) => {
+                        return (
+                          <li
+                            key={x}
+                            className={
+                              props?.clusHighlight === x
+                                ? "legend-highlight"
+                                : ""
+                            }
+                            style={{
+                              color: props?.clusterColors
+                                ? props?.clusterColors[
+                                    getMinMax(
+                                      annotationObj[default_cluster]
+                                    )[1] +
+                                      1 +
+                                      i
+                                  ]
+                                : defaultColor,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                flexDirection: "row",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  alignSelf: "center",
+                                }}
+                                onClick={() => {
+                                  if (x === props?.clusHighlight) {
+                                    props?.setClusHighlight(null);
+                                    props?.setHighlightPoints(null);
+                                    props?.setClusHighlightLabel(null);
+                                  } else {
+                                    props?.setClusHighlight(x);
+                                    props?.setHighlightPoints(
+                                      props?.customSelection[x]
+                                    );
+                                    props?.setClusHighlightLabel(x);
+                                  }
+                                }}
+                              >
+                                Selection {x.replace("cs", "")}
+                              </span>
+                              <Icon
+                                size={10}
+                                icon="trash"
+                                style={{
+                                  paddingLeft: "2px",
+                                }}
+                                onClick={() => {
+                                  let tmpSel = {
+                                    ...props?.customSelection,
+                                  };
+                                  delete tmpSel[x];
+                                  props?.setCustomSelection(tmpSel);
+
+                                  if (props?.clusterColors) {
+                                    let tmpcolors = [...props?.clusterColors];
+                                    tmpcolors = tmpcolors.slice(
+                                      0,
+                                      tmpcolors.length - 1
+                                    );
+                                    props?.setClusterColors(tmpcolors);
+                                  }
+
+                                  props?.setDelCustomSelection(x);
+
+                                  if (props?.clusHighlight === x) {
+                                    props?.setClusHighlight(null);
+                                    props?.setClusHighlightLabel(null);
+                                  }
+                                }}
+                              ></Icon>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  {props?.selectedPoints && props?.selectedPoints.length > 0 ? (
+                    <div>
+                      <Divider />
+                      <div className="dimplot-selection-container">
+                        <span>
+                          {props?.selectedPoints.length} cells selected
+                        </span>
+                        <div className="dimplot-selection-button-container">
+                          <Button
+                            small={true}
+                            intent="primary"
+                            onClick={savePoints}
+                          >
+                            Save
+                          </Button>
+                          <Button small={true} onClick={clearPoints}>
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    ""
+                  )}
+                </Callout>
+              </>
+            ) : (
+              ""
+            )}
+          </div>
+
+        <Callout style={{ marginTop: "5px" }}>
+          <Label style={{ marginBottom: "0", fontSize: "x-small" }}>
+            Point Size:
+            <NumericInput
+              small
+              fill
+              size={"small"}
+              value={pointSize}
+              onValueChange={(valueAsNumber) => {
+                if (
+                  !isNaN(valueAsNumber) &&
+                  valueAsNumber > 0 &&
+                  valueAsNumber <= 10
+                ) {
+                  setPointSize(valueAsNumber);
+                } else if (valueAsNumber <= 0) {
+                  setPointSize(1);
+                } else if (valueAsNumber > 10) {
+                  setPointSize(10);
+                }
+              }}
+              min={1}
+              max={10}
+              stepSize={0.5}
+              minorStepSize={0.1}
+              // style={{ width: "70px", marginLeft: "5px" }}
+            />
+          </Label>
+        </Callout>
+        {showGradient &&
+          props?.selectedFsetIndex !== null &&
+          props?.selectedFsetIndex !== undefined && (
+            <div className="dimplot-right-sidebar-slider">
+              <Divider />
+              <Callout style={{ fontSize: "x-small" }}>
+                <span>
+                  Gradient for{" "}
+                  <Tag
+                    minimal={true}
+                    intent="warning"
+                    onRemove={() => {
+                      props?.setSelectedFsetIndex(null);
+                    }}
+                  >
+                    {
+                      props?.fsetEnirchDetails.sets.names[
+                        props?.selectedFsetIndex
+                      ]
+                    }
+                  </Tag>
+                  &nbsp;
+                  <Tooltip2
+                    content="Use the slider to adjust the color gradient of the plot. Useful when data is skewed
+                                by either a few lowly or highly scores cells"
+                    openOnTargetFocus={false}
+                  >
+                    <Icon icon="help" size={12}></Icon>
+                  </Tooltip2>
+                </span>
+                <div className="dim-slider-container">
+                  <div className="dim-slider-gradient">
+                    {/* <span>{Math.round(exprMinMax[0])}</span>&nbsp; */}
+                    <div
+                      style={{
+                        backgroundImage: `linear-gradient(to right, #F5F8FA ${
+                          ((sliderMinMax[0] - exprMinMax[0]) * 100) /
+                          (exprMinMax[1] - exprMinMax[0])
+                        }%, ${
+                          ((sliderMinMax[1] +
+                            sliderMinMax[0] -
+                            2 * exprMinMax[0]) *
+                            100) /
+                          (2 * (exprMinMax[1] - exprMinMax[0]))
+                        }%, #2965CC ${
+                          100 -
+                          ((exprMinMax[1] - sliderMinMax[1]) * 100) /
+                            (exprMinMax[1] - exprMinMax[0])
+                        }%)`,
+                        width: "145px",
+                        height: "15px",
+                        marginLeft: "4px",
+                      }}
+                    ></div>
+                    &nbsp;
+                    {/* <span>{Math.round(exprMinMax[1])}</span> */}
+                  </div>
+                  <div className="dim-range-slider">
+                    <RangeSlider
+                      min={exprMinMax[0]}
+                      max={exprMinMax[1]}
+                      stepSize={Math.max(
+                        Math.round(exprMinMax[1] - exprMinMax[0]) / 50,
+                        0.0001
+                      )}
+                      labelValues={exprMinMax}
+                      onChange={(range) => {
+                        setSliderMinMax(range);
+                      }}
+                      value={sliderMinMax}
+                      vertical={false}
+                    />
+                  </div>
+                </div>
+              </Callout>
+            </div>
+          )}
+        {showGradient && props?.gene !== null && props?.gene !== undefined && (
+          <div className="dimplot-right-sidebar-slider">
+            <Divider />
+            <Callout style={{ fontSize: "x-small" }}>
+              <span>
+                Gradient for{" "}
+                <Tag
+                  minimal={true}
+                  intent="warning"
+                  onRemove={() => {
+                    props?.setGene(null);
+                    setSelectedGeneIndex(null);
+                    setGeneSearchQuery("");
+                  }}
+                >
+                  {selectedGeneCol && genesInfo[selectedGeneCol] && props?.gene !== null
+                    ? genesInfo[selectedGeneCol][props?.gene]
+                    : genesInfo[geneColSel[props?.selectedModality]]?.[props?.gene]}
+                </Tag>
+                &nbsp;
+                <Tooltip2
+                  content="Use the slider to adjust the color gradient of the plot. Useful when data is skewed
+                                by either a few lowly or highly expressed cells"
+                  openOnTargetFocus={false}
+                >
+                  <Icon icon="help" size={12}></Icon>
+                </Tooltip2>
+              </span>
+              <div className="dim-slider-container">
+                <div className="dim-slider-gradient">
+                  {/* <span>{Math.round(exprMinMax[0])}</span>&nbsp; */}
+                  <div
+                    style={{
+                      backgroundImage: `linear-gradient(to right, #F5F8FA ${
+                        ((sliderMinMax[0] - exprMinMax[0]) * 100) /
+                        (exprMinMax[1] - exprMinMax[0])
+                      }%, ${
+                        ((sliderMinMax[1] +
+                          sliderMinMax[0] -
+                          2 * exprMinMax[0]) *
+                          100) /
+                        (2 * (exprMinMax[1] - exprMinMax[0]))
+                      }%, #2965CC ${
+                        100 -
+                        ((exprMinMax[1] - sliderMinMax[1]) * 100) /
+                          (exprMinMax[1] - exprMinMax[0])
+                      }%)`,
+                      width: "145px",
+                      height: "15px",
+                      marginLeft: "4px",
+                    }}
+                  ></div>
+                  &nbsp;
+                  {/* <span>{Math.round(exprMinMax[1])}</span> */}
+                </div>
+                <div className="dim-range-slider">
+                  <RangeSlider
+                    min={exprMinMax[0]}
+                    max={exprMinMax[1]}
+                    stepSize={Math.round(exprMinMax[1] - exprMinMax[0]) / 10}
+                    labelValues={exprMinMax}
+                    onChange={(range) => {
+                      setSliderMinMax(range);
+                    }}
+                    value={sliderMinMax}
+                    vertical={false}
+                  />
+                </div>
+              </div>
+            </Callout>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(DimPlot);

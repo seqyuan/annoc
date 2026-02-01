@@ -1,0 +1,155 @@
+.dotplot-container {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.dotplot-left-panel {
+  width: 233px; /* 2/3 of original 350px */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.dotplot-right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Same panel as plot (like Explore Choose annotation) */
+.dotplot-plot-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background-color: white;
+}
+
+.dotplot-plot-panel .dotplot-canvas-container {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+}
+
+/* Colormap in top-right corner of the plot panel */
+.dotplot-colormap-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+  border-radius: 3px;
+  border: 1px solid #e1e8ed;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.dotplot-colormap-corner .dotplot-colormap-label {
+  font-size: 12px;
+  color: #5f6b7c;
+  flex-shrink: 0;
+}
+
+.dotplot-colormap-corner .dotplot-colormap-row {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.dotplot-colormap-corner .dotplot-colormap-bar {
+  flex: 1;
+  min-width: 80px;
+  height: 12px;
+}
+
+.dotplot-controls {
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.dotplot-colormap-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.dotplot-colormap-row .dotplot-colormap-bar {
+  flex: 1;
+  margin-top: 0;
+}
+
+.dotplot-colormap-bar {
+  margin-top: 0;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  width: 100%;
+  min-width: 0;
+}
+
+.dotplot-colormap-option-bar {
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  width: 100%;
+  min-width: 120px;
+}
+
+.dotplot-file-upload {
+  margin-top: 10px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Override Blueprint min-width so input shrinks and Browse button stays visible */
+.dotplot-file-upload .bp4-file-input {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+}
+.dotplot-file-upload .bp4-file-input input {
+  min-width: 0 !important;
+  flex: 1;
+}
+.dotplot-file-upload .bp4-file-input .bp4-file-upload-input {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dotplot-actions {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.dotplot-canvas-container {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+.dotplot-status-messages {
+  margin-bottom: 15px;
+}
+
+.dotplot-canvas {
+  display: block;
+  margin: 0 auto;
+}

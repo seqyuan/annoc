@@ -1,0 +1,5 @@
+.cell-proportions-container {
+  height: 100%;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+}
