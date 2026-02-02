@@ -45,6 +45,7 @@ import "../../App.css";
 import FeatureSetEnrichment from "../FeatureSets";
 import CellAnnotation from "../CellAnnotation";
 import ClusterAnnotation from "../ClusterAnnotation";
+import Subcluster from "../Subcluster";
 
 const scranWorker = new Worker(
   new URL("../../workers/explorer.worker.js", import.meta.url),
@@ -859,6 +860,22 @@ export function ExplorerMode() {
       setAnnotationObj(tmp);
 
       setReqAnnotation(null);
+    } else if (type === "findSubcluster_DATA") {
+      if (resp?.success && resp?.newColumnName) {
+        setAnnotationCols((prev) => ({
+          ...prev,
+          [resp.newColumnName]: {
+            name: resp.newColumnName,
+            type: "categorical",
+            truncated: false,
+          },
+        }));
+        setAnnotationObj((prev) => {
+          const next = { ...prev };
+          delete next[resp.newColumnName];
+          return next;
+        });
+      }
     } else if (
       type === "cell_labelling_DATA" ||
       type === "computeCellAnnotation_DATA"
@@ -1096,6 +1113,42 @@ export function ExplorerMode() {
                     }}
                   >
                     DOTPLOT
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "subcluster" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Find subclusters within selected clusters"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "subcluster" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"git-branch"}
+                    onClick={() => setShowPanel("subcluster")}
+                    intent={showPanel === "subcluster" ? "primary" : "none"}
+                    disabled={selectedRedDim === null}
+                  ></Button>
+                  <span
+                    onClick={() => selectedRedDim !== null && setShowPanel("subcluster")}
+                    style={{
+                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
+                      color: showPanel === "subcluster" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                    }}
+                  >
+                    SUBCLUSTER
                   </span>
                 </div>
               </Tooltip2>
@@ -1355,6 +1408,9 @@ export function ExplorerMode() {
               scranWorker={scranWorker}
               selectedModality={selectedModality}
             />
+          </div>
+          <div style={{ display: showPanel === "subcluster" ? "block" : "none" }}>
+            <Subcluster scranWorker={scranWorker} setReqAnnotation={setReqAnnotation} />
           </div>
           {showPanel === "params" && (
             <div style={{ padding: "20px" }}>

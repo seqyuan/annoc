@@ -24,6 +24,7 @@ let custom_selection_state = null;
 let feature_set_enrich_state = null;
 let cell_labelling_state = null;
 let custom_annotations_state = {};
+let subcluster_results = {};
 
 function createDataset(args, setOpts = false) {
   if (args.format === "H5AD") {
@@ -135,6 +136,24 @@ const getAnnotation = (annotation) => {
 const getMatrix = () => {
   return dataset.matrix;
 };
+
+function getAnnotationLabels(annotation) {
+  if (custom_annotations_state[annotation]) {
+    const c = custom_annotations_state[annotation];
+    const sourceVec = getAnnotation(c.sourceAnnotation);
+    let sourceLabels;
+    if (ArrayBuffer.isView(sourceVec)) sourceLabels = Array.from(sourceVec);
+    else sourceLabels = Array.from(sourceVec);
+    return sourceLabels.map((cluster) => c.annotations[String(cluster)] ?? String(cluster));
+  }
+  const vec = getAnnotation(annotation);
+  const factorized = scran.factorize(vec);
+  const levels = factorized.levels;
+  let ids = factorized.ids;
+  if (ids && typeof ids.array === "function") ids = ids.array();
+  ids = Array.from(ids);
+  return ids.map((i) => (levels[i] != null ? String(levels[i]) : ""));
+}
 
 /***************************************/
 
@@ -510,8 +529,26 @@ onmessage = function (msg) {
         let annot = payload.annotation;
         let vec, output;
 
-        // Check if this is a custom annotation first
-        if (custom_annotations_state[annot]) {
+        // Check if this is a subcluster result
+        if (subcluster_results[annot]) {
+          const labels = subcluster_results[annot].labels;
+          const uniq_vals = [];
+          const uniq_map = {};
+          const indices = new Int32Array(labels.length);
+          for (let i = 0; i < labels.length; i++) {
+            const lab = labels[i] != null ? String(labels[i]) : "";
+            if (lab && !(lab in uniq_map)) {
+              uniq_map[lab] = uniq_vals.length;
+              uniq_vals.push(lab);
+            }
+            indices[i] = lab in uniq_map ? uniq_map[lab] : -1;
+          }
+          output = {
+            type: "factor",
+            index: indices,
+            levels: uniq_vals,
+          };
+        } else if (custom_annotations_state[annot]) {
           const customAnnotation = custom_annotations_state[annot];
           const sourceAnnotation = customAnnotation.sourceAnnotation;
           const annotations = customAnnotation.annotations;
@@ -1014,6 +1051,126 @@ onmessage = function (msg) {
       .catch((err) => {
         console.error(err);
         postError(type, err, fatal);
+      });
+  } else if (type === "findSubcluster") {
+    loaded
+      .then((x) => {
+        const {
+          annotation,
+          selectedClusters: selectedClustersList,
+          newColumnName,
+          parameters = {},
+        } = payload;
+        const selectedSet = new Set((selectedClustersList || []).map(String));
+        const k = Math.max(2, Number(parameters.k) || 10);
+        const scheme = parameters.scheme || "rank";
+        const algorithm = parameters.algorithm || "multilevel";
+        const multilevel_resolution = Number(parameters.multilevel_resolution) || 1;
+        const leiden_resolution = Number(parameters.leiden_resolution) || 1;
+        const walktrap_steps = Math.max(1, Number(parameters.walktrap_steps) || 4);
+
+        const labels = getAnnotationLabels(annotation);
+        const nCells = labels.length;
+        const subsetIndices = [];
+        const parentLabels = [];
+        for (let i = 0; i < nCells; i++) {
+          const lab = String(labels[i] ?? "");
+          if (selectedSet.has(lab)) {
+            subsetIndices.push(i);
+            parentLabels.push(lab);
+          }
+        }
+        const nSubset = subsetIndices.length;
+        if (nSubset === 0) {
+          postMessage({
+            type: "findSubcluster_DATA",
+            resp: { success: false, message: "No cells in selected clusters." },
+            msg: "No cells to subcluster"
+          });
+          return;
+        }
+
+        const embedKeys = Object.keys(dataset.reduced_dimensions || {}).filter(
+          (key) => key.toLowerCase() !== "pca"
+        );
+        if (embedKeys.length === 0) {
+          postMessage({
+            type: "findSubcluster_DATA",
+            resp: { success: false, message: "No UMAP/t-SNE embedding available." },
+            msg: "No embedding"
+          });
+          return;
+        }
+        const embedKey = embedKeys[0];
+        const emb = dataset.reduced_dimensions[embedKey];
+        const nDims = Math.min(2, emb.length);
+        const data = new Float64Array(nDims * nSubset);
+        for (let i = 0; i < nSubset; i++) {
+          const idx = subsetIndices[i];
+          for (let d = 0; d < nDims; d++) {
+            data[d * nSubset + i] = emb[d][idx];
+          }
+        }
+
+        let index = null;
+        let neighbors = null;
+        let graph = null;
+        let clusterResult = null;
+        try {
+          index = scran.buildNeighborSearchIndex(data, {
+            numberOfDims: nDims,
+            numberOfCells: nSubset,
+          });
+          const kActual = Math.min(k, Math.max(1, nSubset - 1));
+          neighbors = scran.findNearestNeighbors(index, kActual);
+          graph = scran.buildSNNGraph(neighbors, { scheme });
+          clusterResult = scran.clusterSNNGraph(graph, {
+            method: algorithm,
+            multiLevelResolution: multilevel_resolution,
+            leidenResolution: leiden_resolution,
+            leidenModularityObjective: true,
+            walktrapSteps: walktrap_steps,
+          });
+          if (algorithm === "multilevel" && clusterResult.best() == null) {
+            clusterResult.setBest(0);
+          }
+          let membership = clusterResult.membership({ copy: true });
+          if (membership && typeof membership.array === "function") {
+            membership = membership.array();
+          }
+          membership = Array.from(membership || []);
+
+          const fullLabels = labels.slice();
+          for (let i = 0; i < nSubset; i++) {
+            fullLabels[subsetIndices[i]] = parentLabels[i] + "_" + String(membership[i] ?? 0);
+          }
+          subcluster_results[newColumnName] = { labels: fullLabels };
+
+          postMessage({
+            type: "findSubcluster_DATA",
+            resp: { success: true, newColumnName },
+            msg: "Success: findSubcluster done"
+          });
+        } catch (err) {
+          postMessage({
+            type: "findSubcluster_DATA",
+            resp: { success: false, message: (err && err.message) || String(err) },
+            msg: "findSubcluster failed"
+          });
+        } finally {
+          if (clusterResult && typeof clusterResult.free === "function") clusterResult.free();
+          if (graph && typeof graph.free === "function") graph.free();
+          if (neighbors && typeof neighbors.free === "function") neighbors.free();
+          if (index && typeof index.free === "function") index.free();
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        postMessage({
+          type: "findSubcluster_DATA",
+          resp: { success: false, message: (err && err.message) || String(err) },
+          msg: "findSubcluster failed"
+        });
       });
   } else {
     console.error("MIM:::msg type incorrect");

@@ -11,10 +11,62 @@ import {
 } from "@blueprintjs/core";
 import { Select2 } from "@blueprintjs/select";
 import * as d3 from "d3";
+import * as XLSX from "xlsx";
 
 import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
 import "./dotplot.css";
+
+// Expected upload format: col0 = category (e.g. "T cells"), col1 = gene. Supports CSV, TXT, XLSX.
+function isHeaderRow(cells) {
+  if (!cells || cells.length < 2) return false;
+  const a = String(cells[0] ?? "").trim().toLowerCase();
+  const b = String(cells[1] ?? "").trim().toLowerCase();
+  return (
+    (a === "category" || a === "gene" || a === "group" || a === "genes") ||
+    (b === "category" || b === "gene" || b === "group" || b === "genes")
+  );
+}
+
+function parseCsvOrTxt(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  for (const line of lines) {
+    const cells = line.split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+    if (cells.length >= 2 && cells[0] && cells[1]) rows.push([cells[0], cells[1]]);
+  }
+  if (rows.length > 0 && isHeaderRow(rows[0])) rows.shift();
+  return rows;
+}
+
+function parseXlsxBuffer(ab) {
+  const wb = XLSX.read(ab, { type: "array" });
+  const firstSheet = wb.SheetNames[0];
+  if (!firstSheet) return [];
+  const sheet = wb.Sheets[firstSheet];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const out = [];
+  for (const row of rows) {
+    const a = String(row[0] ?? "").trim();
+    const b = String(row[1] ?? "").trim();
+    if (a && b) out.push([a, b]);
+  }
+  if (out.length > 0 && isHeaderRow(out[0])) out.shift();
+  return out;
+}
+
+function rowsToGeneGroups(rows) {
+  const groups = [];
+  let lastCat = null;
+  for (const [cat, gene] of rows) {
+    if (lastCat !== cat) {
+      groups.push({ category: cat, genes: [] });
+      lastCat = cat;
+    }
+    groups[groups.length - 1].genes.push(gene);
+  }
+  return groups;
+}
 
 const COLORMAP_INTERPOLATORS = {
   Blues: d3.interpolateBlues,
@@ -56,6 +108,8 @@ const DotPlot = (props) => {
   const [validGenes, setValidGenes] = useState([]);
   const [invalidGenes, setInvalidGenes] = useState([]);
   const [colormap, setColormap] = useState("Blues");
+  const [geneGroups, setGeneGroups] = useState([]);
+  const [groupRanges, setGroupRanges] = useState([]);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -135,18 +189,50 @@ const DotPlot = (props) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      setGeneInput(text);
-    };
-    reader.readAsText(file);
+    const name = (file.name || "").toLowerCase();
+    const isXlsx = name.endsWith(".xlsx");
+
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const rows = parseXlsxBuffer(e.target.result);
+          const groups = rowsToGeneGroups(rows);
+          setGeneGroups(groups);
+          setGeneInput(groups.flatMap((g) => g.genes).join("\n"));
+        } catch (err) {
+          setError("Failed to parse XLSX: " + (err.message || String(err)));
+          setGeneGroups([]);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const rows = parseCsvOrTxt(text);
+        const groups = rowsToGeneGroups(rows);
+        setGeneGroups(groups);
+        setGeneInput(groups.flatMap((g) => g.genes).join("\n"));
+      };
+      reader.readAsText(file);
+    }
+    event.target.value = "";
   };
 
   const handleGeneratePlot = () => {
-    const genes = parseGeneInput(geneInput);
+    let genes;
+    let flatWithCategory = null;
+
+    if (geneGroups.length > 0) {
+      genes = geneGroups.flatMap((g) => g.genes);
+      flatWithCategory = geneGroups.flatMap((g) => g.genes.map((gene) => [gene, g.category]));
+    } else {
+      genes = parseGeneInput(geneInput);
+    }
+
     if (genes.length === 0) {
-      setError("Please enter at least one gene name");
+      setError("Please enter at least one gene name or upload a file (col1=category, col2=gene)");
       return;
     }
 
@@ -160,10 +246,28 @@ const DotPlot = (props) => {
       return;
     }
 
+    if (flatWithCategory && indices.length > 0) {
+      const validCategories = indices.map((i) => flatWithCategory[i][1]);
+      const ranges = [];
+      let start = 0;
+      for (let i = 1; i <= validCategories.length; i++) {
+        if (i === validCategories.length || validCategories[i] !== validCategories[start]) {
+          ranges.push({
+            category: validCategories[start],
+            startCol: start,
+            endCol: i,
+          });
+          start = i;
+        }
+      }
+      setGroupRanges(ranges);
+    } else {
+      setGroupRanges([]);
+    }
+
     setError(null);
     setLoading(true);
 
-    // Request data from worker
     if (props.scranWorker) {
       props.scranWorker.postMessage({
         type: "getBatchGeneExpression",
@@ -199,7 +303,7 @@ const DotPlot = (props) => {
     if (dotplotData && canvasRef.current && containerRef.current) {
       renderDotplot();
     }
-  }, [dotplotData, globalClusterOrder, colormap, selectedAnnotation]);
+  }, [dotplotData, globalClusterOrder, colormap, selectedAnnotation, groupRanges]);
 
   const renderDotplot = () => {
     const canvas = canvasRef.current;
@@ -256,6 +360,21 @@ const DotPlot = (props) => {
     // Limit max radius to prevent oversized dots
     const maxRadius = Math.min(cellWidth / 2 - 2, cellHeight / 2 - 2, 14);
     const sizeScale = d3.scaleSqrt().domain([0, 1]).range([0, maxRadius]);
+
+    // Draw category labels (above gene names) when uploaded file had col1=category, col2=gene
+    if (groupRanges && groupRanges.length > 0) {
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillStyle = "black";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const categoryY = margin.top - 28;
+      groupRanges.forEach(({ category, startCol, endCol }) => {
+        const startX = margin.left + startCol * cellWidth;
+        const endX = margin.left + endCol * cellWidth;
+        const centerX = (startX + endX) / 2;
+        ctx.fillText(String(category), centerX, categoryY);
+      });
+    }
 
     // Draw gene labels (top): after -45° rotation, left end of text aligns with column center
     ctx.font = "12px sans-serif";
@@ -395,7 +514,10 @@ const DotPlot = (props) => {
             Gene input (one per line or comma-separated):
             <TextArea
               value={geneInput}
-              onChange={(e) => setGeneInput(e.target.value)}
+              onChange={(e) => {
+                setGeneInput(e.target.value);
+                setGeneGroups([]);
+              }}
               placeholder="CD3D&#10;CD8A&#10;CD4&#10;..."
               fill
               rows={6}
@@ -405,9 +527,10 @@ const DotPlot = (props) => {
 
           <div className="dotplot-file-upload">
             <FileInput
-              text="Upload gene list file..."
+              text="Upload marker list (CSV/TXT/XLSX: col1=category, col2=gene)"
               onInputChange={handleFileUpload}
               disabled={loading}
+              inputProps={{ accept: ".csv,.txt,.xlsx" }}
             />
           </div>
 
@@ -423,6 +546,8 @@ const DotPlot = (props) => {
               text="Clear"
               onClick={() => {
                 setGeneInput("");
+                setGeneGroups([]);
+                setGroupRanges([]);
                 setDotplotData(null);
                 setError(null);
                 setValidGenes([]);

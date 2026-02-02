@@ -1,0 +1,27 @@
+.subcluster-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+.subcluster-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  max-width: 320px;
+}
+
+.subcluster-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.subcluster-actions {
+  margin-top: 8px;
+}

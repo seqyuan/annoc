@@ -1,7 +1,7 @@
 {
   "name": "annoc",
   "description": "AnnoC - Single-cell RNA-seq analysis in the browser",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "author": {
     "name": "Jayaram Kancherla",
     "email": "jayaram.kancherla@gmail.com",
@@ -64,7 +64,8 @@
     "workbox-range-requests": "^6.5.4",
     "workbox-routing": "^6.5.4",
     "workbox-strategies": "^6.5.4",
-    "workbox-streams": "^6.5.4"
+    "workbox-streams": "^6.5.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",
