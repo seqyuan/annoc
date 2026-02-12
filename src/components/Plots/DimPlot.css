@@ -43,7 +43,7 @@
   margin: 0;
   margin-left: 10px;
   list-style-position: inside;
-  max-height: calc(100vh / 5);
+  max-height: calc(100vh / 2.5); /* 增加高度以显示更多项目 */
   overflow-y: auto;
 }
 
@@ -122,4 +122,28 @@ text {
 
 .iter {
   z-index: 1;
+}
+
+.point-size-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  margin-bottom: 0 !important;
+  line-height: normal;
+}
+
+.point-size-label .bp4-numeric-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.point-size-label .bp4-label-text {
+  margin: 0;
+  line-height: normal;
+}
+
+/* 减少 Point Size Callout 的上下内边距 */
+.dimplot-right-sidebar .bp4-callout {
+  padding: 6px 10px;
 }

@@ -48,7 +48,7 @@ import { AppContext } from "../../context/AppContext";
 
 import pkgVersion from "../../../package.json";
 
-import logo from "../../assets/kana-cropped.png";
+import logo from "../../assets/annoc-cropped.png";
 import "../../App.css";
 import FeatureSetEnrichment from "../FeatureSets";
 import CellAnnotation from "../CellAnnotation";

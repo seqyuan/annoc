@@ -6,20 +6,134 @@
   overflow: hidden;
 }
 
+.cluster-annotation-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cluster-annotation-tabs .bp4-tab-panel {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 0;
+}
+
+.cluster-annotation-tabs .bp4-tab-list {
+  margin-bottom: 8px;
+  border-bottom: 2px solid #e1e8ed;
+  padding-bottom: 0;
+}
+
+/* Tab 基础样式 */
+.cluster-annotation-tabs .bp4-tab {
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #5c7080 !important;
+  border-radius: 4px 4px 0 0 !important;
+  margin-right: 4px;
+  transition: all 0.2s ease !important;
+  background-color: transparent !important;
+}
+
+/* Tab hover 效果 */
+.cluster-annotation-tabs .bp4-tab:hover {
+  background-color: #f5f8fa !important;
+  color: #182026 !important;
+}
+
+/* 选中的 Tab 样式 */
+.cluster-annotation-tabs .bp4-tab[aria-selected="true"] {
+  background-color: #137cbd !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 4px rgba(19, 124, 189, 0.2) !important;
+}
+
+/* 选中的 Tab 下方指示器 */
+.cluster-annotation-tabs .bp4-tab-indicator-wrapper {
+  display: none !important; /* 隐藏默认的指示器，因为我们使用了背景色 */
+}
+
+.cluster-annotation-tabs .bp4-tab-indicator {
+  display: none !important;
+}
+
+.stat-chart-container {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
 .cluster-annotation-header {
-  margin-bottom: 10px;
+  margin-bottom: 5px; /* 减少与下方的间距 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .cluster-annotation-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: bold;
+  flex: 1;
+}
+
+.cluster-annotation-toggle {
+  flex-shrink: 0;
+}
+
+/* origin: 左端与 Cluster Annotation 对齐，右端保持；new name: 与下方要改名字框对齐且同宽 */
+.cluster-annotation-fields {
+  display: grid;
+  grid-template-columns: 145px 1fr; /* 145px = 40px(drag) + 5px(gap) + 100px(label) */
+  gap: 5px; /* 两个块之间的间距 */
+  align-items: stretch;
+  padding: 4px 8px 4px 0; /* 上下 padding 相同，保持与分隔线距离一致 */
+}
+
+.cluster-field-origin {
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px; /* 减少上下 padding */
+  background-color: #E8F4F8; /* 浅蓝色 */
+  border-radius: 4px;
+}
+
+.cluster-field-origin .bp4-html-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.cluster-field-newname {
+  margin: 0;
+  margin-left: 5px; /* 与下方 annotation 输入框左对齐 */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px; /* 减少上下 padding */
+  background-color: #FFF4E6; /* 浅橙色 */
+  border-radius: 4px;
+}
+
+.cluster-field-newname .bp4-input-group {
+  width: 100%;
+}
+
+/* 减少分隔线的上下边距 */
+.cluster-annotation-container .bp4-divider {
+  margin: 1px 0;
 }
 
 .cluster-list-header {
   display: grid;
   grid-template-columns: 40px 100px 1fr;
-  gap: 10px;
+  gap: 5px; /* 减少列之间的间距，与上方保持一致 */
   padding: 8px;
   font-weight: bold;
   background-color: #f5f5f5;
@@ -30,7 +144,7 @@
 .cluster-list {
   flex: 1;
   overflow-y: auto;
-  margin-top: 5px;
+  margin-top: 0; /* 移除上边距，紧贴分隔线 */
   border: 1px solid #ddd;
   border-radius: 3px;
   background-color: white;
@@ -39,9 +153,9 @@
 .cluster-row {
   display: grid;
   grid-template-columns: 40px 100px 1fr;
-  gap: 10px;
+  gap: 5px; /* 减少列之间的间距，与上方保持一致 */
   align-items: center;
-  padding: 8px;
+  padding: 4px 8px; /* 减少上下 padding，保持左右 padding */
   border-bottom: 1px solid #eee;
   background-color: white;
   cursor: default;
@@ -65,11 +179,17 @@
 
 .cluster-label {
   font-weight: 500;
-  padding: 0 10px;
+  padding: 6px 10px; /* 减少上下 padding 以匹配更紧凑的行高 */
+  background-color: #E8F4F8; /* 浅蓝色，与 origin 字段匹配 */
+  border-radius: 4px;
 }
 
 .annotation-input {
   margin: 0;
+}
+
+.annotation-input .bp4-input {
+  background-color: #FFF4E6; /* 浅橙色，与 new name 字段匹配 */
 }
 
 .cluster-annotation-actions {

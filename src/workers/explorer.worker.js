@@ -138,6 +138,9 @@ const getMatrix = () => {
 };
 
 function getAnnotationLabels(annotation) {
+  if (subcluster_results[annotation]) {
+    return subcluster_results[annotation].labels;
+  }
   if (custom_annotations_state[annotation]) {
     const c = custom_annotations_state[annotation];
     const sourceVec = getAnnotation(c.sourceAnnotation);
@@ -523,6 +526,43 @@ onmessage = function (msg) {
         console.error(err);
         postError(type, err, fatal);
       });
+  } else if (type === "downloadAllSelections") {
+    loaded
+      .then(async (x) => {
+        const selections = payload.selections || {};
+        const entries = Object.entries(selections);
+        if (entries.length === 0) {
+          postError(type, new Error("No selections to download"), false);
+          return;
+        }
+        const result = [];
+        if (dataset?.cells) {
+          const rowNames = dataset.cells.rowNames?.() || null;
+          if (!rowNames) {
+            postError(type, new Error("Dataset has no cell barcodes"), false);
+            return;
+          }
+          for (const [name, indices] of entries) {
+            const idxArr = Array.isArray(indices) ? indices : Array.from(indices || []);
+            const barcodes = idxArr.map((i) =>
+              i >= 0 && i < rowNames.length ? String(rowNames[i]) : ""
+            );
+            result.push({ name, barcodes });
+          }
+        } else {
+          postError(type, new Error("Dataset not loaded"), false);
+          return;
+        }
+        postMessage({
+          type: "downloadAllSelections_DATA",
+          resp: { selections: result },
+          msg: "Success: DOWNLOAD_ALL_SELECTIONS done",
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        postError(type, err, false);
+      });
   } else if (type === "getAnnotation") {
     loaded
       .then((x) => {
@@ -846,8 +886,10 @@ onmessage = function (msg) {
           postSuccess("computeCellAnnotation", result);
         })
         .catch((err) => {
-          console.error(err);
-          postError(type, err, fatal);
+          console.error("Cell annotation reference data fetch failed:", err);
+          // 静默失败，不向用户显示错误，因为这通常是网络问题
+          // 用户可以稍后手动重试
+          postError(type, new Error("Cell annotation reference data is currently unavailable. Please check your network connection and try again later."), false);
         });
     }
   } else if (type === "getBatchGeneExpression") {
@@ -868,7 +910,28 @@ onmessage = function (msg) {
 
         let annotation_vec;
         let clusters, cluster_ids;
-        if (custom_annotations_state[annotation]) {
+        if (subcluster_results[annotation]) {
+          const labels = subcluster_results[annotation].labels;
+          const uniq_vals = [];
+          const uniq_map = {};
+          const allNumeric = labels.every((l) => l === "" || !isNaN(Number(l)));
+          const seen = new Set();
+          labels.forEach((lab) => {
+            const s = lab != null ? String(lab) : "";
+            if (s && !seen.has(s)) {
+              seen.add(s);
+              uniq_vals.push(s);
+            }
+          });
+          if (allNumeric) uniq_vals.sort((a, b) => Number(a) - Number(b));
+          uniq_vals.forEach((v, i) => (uniq_map[v] = i));
+          cluster_ids = new Int32Array(labels.length);
+          for (let j = 0; j < labels.length; j++) {
+            const lab = labels[j] != null ? String(labels[j]) : "";
+            cluster_ids[j] = lab in uniq_map ? uniq_map[lab] : -1;
+          }
+          clusters = uniq_vals;
+        } else if (custom_annotations_state[annotation]) {
           // Custom annotation: use clusterOrder so DotPlot/DimPlot show user's drag order
           const customAnnotation = custom_annotations_state[annotation];
           const sourceAnnotation = customAnnotation.sourceAnnotation;

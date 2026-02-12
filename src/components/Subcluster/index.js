@@ -8,7 +8,9 @@ import {
   Spinner,
   Checkbox,
   NumericInput,
+  Icon,
 } from "@blueprintjs/core";
+import { Tooltip2 } from "@blueprintjs/popover2";
 
 import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
@@ -17,17 +19,30 @@ import "./index.css";
 const ALGORITHMS = ["multilevel", "leiden", "walktrap"];
 const SCHEMES = ["rank", "number", "jaccard"];
 
+const ParamHelp = ({ content }) => (
+  <Tooltip2 content={content} placement="top">
+    <Icon icon="help" size={12} style={{ cursor: "help", marginLeft: 4, opacity: 0.7, verticalAlign: "middle" }} />
+  </Tooltip2>
+);
+
+const HELP = {
+  resolution: "控制聚类粒度，数值越大子群越多。multilevel 和 leiden 共用此参数。",
+  algorithm: "multilevel: 多层社区发现，速度快；leiden: 改进版，社区连通性更好；walktrap: 基于短随机游走识别紧密子群。",
+  walktrapSteps: "随机游走步数，步数越多考虑更远邻接关系。",
+  k: "构建 SNN 图时每个细胞考虑的最近邻数量。",
+  scheme: "rank: 按邻居排名加权，对高维数据稳定；number: 按共同邻居数加权；jaccard: 用 Jaccard 相似度加权。",
+};
+
 const Subcluster = (props) => {
   const { annotationCols, annotationObj, setAnnotationCols, setAnnotationObj, setReqAnnotation } =
     useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
   const [selectedClusters, setSelectedClusters] = useState(new Set());
-  const [resolution, setResolution] = useState(1);
+  const [resolution, setResolution] = useState(0.25);
   const [algorithm, setAlgorithm] = useState("multilevel");
-  const [k, setK] = useState(10);
+  const [k, setK] = useState(20);
   const [scheme, setScheme] = useState("rank");
-  const [leidenResolution, setLeidenResolution] = useState(1);
   const [walktrapSteps, setWalktrapSteps] = useState(4);
   const [newColumnName, setNewColumnName] = useState("subcluster1");
   const [loading, setLoading] = useState(false);
@@ -102,7 +117,7 @@ const Subcluster = (props) => {
             scheme,
             algorithm,
             multilevel_resolution: resolution,
-            leiden_resolution: leidenResolution,
+            leiden_resolution: resolution,
             walktrap_steps: walktrapSteps,
           },
         },
@@ -182,22 +197,24 @@ const Subcluster = (props) => {
           </Label>
         )}
 
-        <Label>
-          Resolution
-          <NumericInput
-            value={resolution}
-            onValueChange={(v) => setResolution(typeof v === "number" ? v : 1)}
-            min={0.1}
-            max={5}
-            stepSize={0.1}
-            minorStepSize={0.01}
-            disabled={loading}
-            fill
-          />
-        </Label>
+        {(algorithm === "multilevel" || algorithm === "leiden") && (
+          <Label>
+            Resolution <ParamHelp content={HELP.resolution} />
+            <NumericInput
+              value={resolution}
+              onValueChange={(v) => setResolution(typeof v === "number" ? v : 0.25)}
+              min={0.1}
+              max={5}
+              stepSize={0.1}
+              minorStepSize={0.01}
+              disabled={loading}
+              fill
+            />
+          </Label>
+        )}
 
         <Label>
-          Algorithm
+          Algorithm <ParamHelp content={HELP.algorithm} />
           <HTMLSelect
             value={algorithm}
             onChange={(e) => setAlgorithm(e.target.value)}
@@ -212,24 +229,9 @@ const Subcluster = (props) => {
           </HTMLSelect>
         </Label>
 
-        {algorithm === "leiden" && (
-          <Label>
-            Leiden resolution
-            <NumericInput
-              value={leidenResolution}
-              onValueChange={(v) => setLeidenResolution(typeof v === "number" ? v : 1)}
-              min={0.1}
-              max={5}
-              stepSize={0.1}
-              disabled={loading}
-              fill
-            />
-          </Label>
-        )}
-
         {algorithm === "walktrap" && (
           <Label>
-            Walktrap steps
+            Walktrap steps <ParamHelp content={HELP.walktrapSteps} />
             <NumericInput
               value={walktrapSteps}
               onValueChange={(v) => setWalktrapSteps(typeof v === "number" ? v : 4)}
@@ -243,10 +245,10 @@ const Subcluster = (props) => {
         )}
 
         <Label>
-          k (neighbors)
+          k (neighbors) <ParamHelp content={HELP.k} />
           <NumericInput
             value={k}
-            onValueChange={(v) => setK(typeof v === "number" ? v : 10)}
+            onValueChange={(v) => setK(typeof v === "number" ? v : 20)}
             min={2}
             max={50}
             stepSize={1}
@@ -256,7 +258,7 @@ const Subcluster = (props) => {
         </Label>
 
         <Label>
-          Scheme
+          Scheme <ParamHelp content={HELP.scheme} />
           <HTMLSelect
             value={scheme}
             onChange={(e) => setScheme(e.target.value)}

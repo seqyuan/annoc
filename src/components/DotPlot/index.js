@@ -8,8 +8,10 @@ import {
   Spinner,
   FileInput,
   MenuItem,
+  Icon,
 } from "@blueprintjs/core";
 import { Select2 } from "@blueprintjs/select";
+import { Popover2, Tooltip2 } from "@blueprintjs/popover2";
 import * as d3 from "d3";
 import * as XLSX from "xlsx";
 
@@ -527,11 +529,54 @@ const DotPlot = (props) => {
 
           <div className="dotplot-file-upload">
             <FileInput
-              text="Upload marker list (CSV/TXT/XLSX: col1=category, col2=gene)"
+              text="Upload marker list"
               onInputChange={handleFileUpload}
               disabled={loading}
               inputProps={{ accept: ".csv,.txt,.xlsx" }}
             />
+            <Popover2
+              content={
+                <div style={{ padding: "15px", maxWidth: "400px" }}>
+                  <h4 style={{ marginTop: 0 }}>Upload File Format</h4>
+                  <p><strong>Supported formats:</strong> CSV, TXT, XLSX</p>
+                  <p><strong>Required columns:</strong></p>
+                  <ul style={{ marginLeft: "20px", marginBottom: "10px" }}>
+                    <li><strong>Column 1:</strong> Category/Group name (e.g., "T cells", "B cells")</li>
+                    <li><strong>Column 2:</strong> Gene name (e.g., "CD3D", "CD8A")</li>
+                  </ul>
+                  <p><strong>Example CSV:</strong></p>
+                  <pre style={{
+                    background: "#f5f5f5",
+                    padding: "10px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    overflow: "auto"
+                  }}>
+{`category,gene
+T cells,CD3D
+T cells,CD8A
+T cells,CD4
+B cells,CD19
+B cells,MS4A1`}
+                  </pre>
+                  <p style={{ fontSize: "12px", color: "#666", marginBottom: 0 }}>
+                    <strong>Note:</strong> Header row is optional. Files can be tab-delimited or comma-delimited.
+                  </p>
+                </div>
+              }
+              placement="right"
+            >
+              <Tooltip2 content="Click for file format help" placement="top">
+                <Icon
+                  icon="help"
+                  style={{
+                    marginLeft: "8px",
+                    cursor: "pointer",
+                    color: "#5C7080"
+                  }}
+                />
+              </Tooltip2>
+            </Popover2>
           </div>
 
           <div className="dotplot-actions">

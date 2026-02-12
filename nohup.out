@@ -1,0 +1,691 @@
+
+> annoc@0.1.2 start
+> craco start
+
+Something is already running on port 3000.
+
+> annoc@0.1.2 start
+> craco start
+
+(node:1348915) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:1348915) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Starting the development server...
+
+Compiled with warnings.
+
+Critical dependency: the request of a dependency is an expression
+
+Circular dependency between chunks with runtime (main, node_modules_bakana_browser_steps_tsne_worker_js, node_modules_bakana_browser_steps_umap_worker_js, node_modules_scran_js_browser_wasm_scran_worker_js, src_workers_explorer_worker_js, src_workers_scran_worker_js)
+This prevents using hashes of each other and should be avoided.
+
+[eslint] 
+src/components/AnalysisMode/index.js
+  Line 51:8:     'logo' is defined but never used                                                                                                                                                                                                       no-unused-vars
+  Line 68:10:    'loading' is assigned a value but never used                                                                                                                                                                                           no-unused-vars
+  Line 149:10:   'cellSubsetData' is assigned a value but never used                                                                                                                                                                                    no-unused-vars
+  Line 152:10:   'fSelectionData' is assigned a value but never used                                                                                                                                                                                    no-unused-vars
+  Line 288:10:   'fsetGeneExprCache' is assigned a value but never used                                                                                                                                                                                 no-unused-vars
+  Line 288:29:   'setFsetGeneExprCache' is assigned a value but never used                                                                                                                                                                              no-unused-vars
+  Line 338:6:    React Hook useEffect has a missing dependency: 'preInputFiles'. Either include it or remove the dependency array                                                                                                                       react-hooks/exhaustive-deps
+  Line 391:6:    React Hook useEffect has missing dependencies: 'initLoadState' and 'setInitLoadState'. Either include them or remove the dependency array                                                                                              react-hooks/exhaustive-deps
+  Line 431:6:    React Hook useEffect has a missing dependency: 'selectedMarkerAnnotation'. Either include it or remove the dependency array                                                                                                            react-hooks/exhaustive-deps
+  Line 453:6:    React Hook useEffect has a missing dependency: 'delCustomSelection'. Either include it or remove the dependency array                                                                                                                  react-hooks/exhaustive-deps
+  Line 475:6:    React Hook useEffect has a missing dependency: 'selectedCluster'. Either include it or remove the dependency array                                                                                                                     react-hooks/exhaustive-deps
+  Line 507:6:    React Hook useEffect has missing dependencies: 'params' and 'selectedRedDim'. Either include them or remove the dependency array                                                                                                       react-hooks/exhaustive-deps
+  Line 545:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'inputData.genes', 'setGeneColSel', and 'setGenesInfo'. Either include them or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 575:6:    React Hook useEffect has missing dependencies: 'inputFiles' and 'params'. Either include them or remove the dependency array                                                                                                           react-hooks/exhaustive-deps
+  Line 602:6:    React Hook useEffect has missing dependencies: 'inputFiles' and 'params'. Either include them or remove the dependency array                                                                                                           react-hooks/exhaustive-deps
+  Line 632:6:    React Hook useEffect has missing dependencies: 'datasetName' and 'inputFiles?.files'. Either include them or remove the dependency array                                                                                               react-hooks/exhaustive-deps
+  Line 725:6:    React Hook useEffect has missing dependencies: 'fsetClusterRank', 'selectedFsetAnnotation', and 'selectedFsetModality'. Either include them or remove the dependency array                                                             react-hooks/exhaustive-deps
+  Line 747:11:   'options' is assigned a value but never used                                                                                                                                                                                           no-unused-vars
+  Line 769:6:    React Hook useEffect has missing dependencies: 'setInputFiles', 'setPreInputFiles', and 'setPreInputOptionsStatus'. Either include them or remove the dependency array                                                                 react-hooks/exhaustive-deps
+  Line 819:6:    React Hook useEffect has missing dependencies: 'cellLabelData', 'default_cluster', 'fsetEnirchDetails', 'markersORFSets', 'selectedClusterSummary.length', and 'selectedModality'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 850:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                                                                react-hooks/exhaustive-deps
+  Line 914:28:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 924:35:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 942:35:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 1390:24:  'setCellAnnWidth' is assigned a value but never used                                                                                                                                                                                   no-unused-vars
+  Line 2070:11:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                  react/jsx-no-target-blank
+
+src/components/CellAnnotation/index.js
+  Line 21:3:    'defaultColor' is defined but never used                                                                                                                                                                                                                                                                    no-unused-vars
+  Line 96:6:    React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 411:19:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                       react/jsx-no-target-blank
+
+src/components/ClusterAnnotation/index.js
+  Line 117:6:  React Hook useEffect has missing dependencies: 'getNonNumericColumns' and 'selectedMetadata'. Either include them or remove the dependency array                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  Line 152:6:  React Hook useEffect has missing dependencies: 'annotationColumnName', 'clusterAnnotations', 'currentAnnotations', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+
+src/components/DotPlot/index.js
+  Line 108:10:  'validGenes' is assigned a value but never used                                                                   no-unused-vars
+  Line 306:6:   React Hook useEffect has a missing dependency: 'renderDotplot'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/ExploreMode/index.js
+  Line 36:8:     'MarkerPlot' is defined but never used                                                                                                                                                 no-unused-vars
+  Line 43:8:     'logo' is defined but never used                                                                                                                                                       no-unused-vars
+  Line 45:8:     'FeatureSetEnrichment' is defined but never used                                                                                                                                       no-unused-vars
+  Line 46:8:     'CellAnnotation' is defined but never used                                                                                                                                             no-unused-vars
+  Line 59:10:    'loading' is assigned a value but never used                                                                                                                                           no-unused-vars
+  Line 106:18:   'setQcDims' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 107:10:   'qcData' is assigned a value but never used                                                                                                                                            no-unused-vars
+  Line 107:18:   'setQcData' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 110:10:   'cellSubsetData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 110:26:   'setCellSubsetData' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 113:10:   'fSelectionData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 113:26:   'setFSelectionData' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 116:10:   'pcaVarExp' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 116:21:   'setPcaVarExp' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 129:23:   'setAnimateData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 132:10:   'cellLabelData' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 144:10:   'showQCLoader' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 145:10:   'showPCALoader' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 145:25:   'setShowPCALoader' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 146:10:   'showNClusLoader' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 147:10:   'showCellLabelLoader' is assigned a value but never used                                                                                                                               no-unused-vars
+  Line 148:10:   'showFsetLoader' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 198:10:   'triggerAnimation' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 204:23:   'setClusterRank' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 206:29:   'setSelectedVSCluster' is assigned a value but never used                                                                                                                              no-unused-vars
+  Line 208:10:   'clusterColors' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 208:25:   'setClusterColors' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 218:10:   'highlightPoints' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 227:26:   'setMarkersOrFsets' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 229:27:   'setFsetClusterRank' is assigned a value but never used                                                                                                                                no-unused-vars
+  Line 231:10:   'featureScores' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 231:25:   'setFeatureScores' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 233:31:   'setSelectedFsetCluster' is assigned a value but never used                                                                                                                            no-unused-vars
+  Line 243:10:   'featureSetGeneIndex' is assigned a value but never used                                                                                                                               no-unused-vars
+  Line 243:31:   'setFeatureSetGeneIndex' is assigned a value but never used                                                                                                                            no-unused-vars
+  Line 249:10:   'fsetGeneExprCache' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 249:29:   'setFsetGeneExprCache' is assigned a value but never used                                                                                                                              no-unused-vars
+  Line 251:33:   'setSelectedFsetVSCluster' is assigned a value but never used                                                                                                                          no-unused-vars
+  Line 343:6:    React Hook useEffect has a missing dependency: 'selectedMarkerAnnotation'. Either include it or remove the dependency array                                                            react-hooks/exhaustive-deps
+  Line 365:6:    React Hook useEffect has a missing dependency: 'delCustomSelection'. Either include it or remove the dependency array                                                                  react-hooks/exhaustive-deps
+  Line 387:6:    React Hook useEffect has a missing dependency: 'selectedCluster'. Either include it or remove the dependency array                                                                     react-hooks/exhaustive-deps
+  Line 439:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'inputData.genes', 'setGeneColSel', and 'setGenesInfo'. Either include them or remove the dependency array                react-hooks/exhaustive-deps
+  Line 450:6:    React Hook useEffect has missing dependencies: 'initFset' and 'initFsetReq'. Either include them or remove the dependency array                                                        react-hooks/exhaustive-deps
+  Line 482:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 511:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 532:6:    React Hook useEffect has missing dependencies: 'fsetClusterRank', 'selectedFsetAnnotation', and 'selectedFsetModality'. Either include them or remove the dependency array             react-hooks/exhaustive-deps
+  Line 562:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 718:15:   Expected '===' and instead saw '=='                                                                                                                                                    eqeqeq
+  Line 738:49:   Expected '===' and instead saw '=='                                                                                                                                                    eqeqeq
+  Line 1008:10:  'markersWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1008:24:  'setMarkersWidth' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 1011:10:  'fsetWidth' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 1011:21:  'setFsetWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1014:10:  'cellAnnWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1014:24:  'setCellAnnWidth' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 1020:9:   'getGalleryStyles' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 1610:11:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+
+src/components/FeatureSets/index.js
+  Line 32:3:    'defaultColor' is defined but never used                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 68:10:   'pvalMinMax' is assigned a value but never used                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  Line 84:9:    'detectedScale' is assigned a value but never used                                                                                                                                                                                                                                                                                                                            no-unused-vars
+  Line 95:6:    React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                                    react-hooks/exhaustive-deps
+  Line 220:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                                    react-hooks/exhaustive-deps
+  Line 274:30:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                                                                                                              array-callback-return
+  Line 315:6:   React Hook useEffect has missing dependencies: 'fsetFilter?.count', 'fsetFilter?.pvalue', 'props?.fsetClusterRank', 'props?.selectedFsetAnnotation', and 'props?.selectedFsetCluster'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setFsetFilter' needs the current value of 'fsetFilter.count'  react-hooks/exhaustive-deps
+  Line 320:22:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                                                                                                              array-callback-return
+  Line 353:6:   React Hook useMemo has a missing dependency: 'minMaxs'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  Line 376:17:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                                                                                         react/jsx-no-target-blank
+  Line 389:15:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                                                                                         react/jsx-no-target-blank
+
+src/components/Gallery/SortableItem.js
+  Line 49:5:  Expected a default case  default-case
+
+src/components/Gallery/index.js
+  Line 4:8:     'CellLabelTable' is defined but never used                                                                                                                                                                                                                                                no-unused-vars
+  Line 8:10:    'Card' is defined but never used                                                                                                                                                                                                                                                          no-unused-vars
+  Line 8:16:    'Elevation' is defined but never used                                                                                                                                                                                                                                                     no-unused-vars
+  Line 8:27:    'Classes' is defined but never used                                                                                                                                                                                                                                                       no-unused-vars
+  Line 25:10:   'Popover2' is defined but never used                                                                                                                                                                                                                                                      no-unused-vars
+  Line 99:6:    React Hook useEffect has a missing dependency: 'get_children'. Either include it or remove the dependency array                                                                                                                                                                           react-hooks/exhaustive-deps
+  Line 122:35:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 148:6:   React Hook useEffect has missing dependencies: 'defaultItems', 'get_image_title', 'itemContent', 'props?.colorByAnnotation', 'props?.highlightPoints', 'props?.redDimsData', 'props?.selectedPoints', and 'props?.setSelectedPoints'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:53:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 199:23:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 208:48:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 272:49:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+
+src/components/LoadAnalysis/index.js
+  Line 86:6:  React Hook useEffect has a missing dependency: 'tabSelected'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/LoadExplore/H5ADCard.js
+  Line 27:20:  'setCollapse' is assigned a value but never used                                                                                                                                                                                                                                                                                                            no-unused-vars
+  Line 44:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                  react-hooks/exhaustive-deps
+  Line 52:6:   React Hook useEffect has missing dependencies: 'inputOpts' and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback                                                                                                   react-hooks/exhaustive-deps
+  Line 54:9:   'handleRemove' is assigned a value but never used                                                                                                                                                                                                                                                                                                           no-unused-vars
+  Line 83:6:   React Hook useEffect has missing dependencies: 'dsMeta.all_features.columns', 'options', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 83:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+
+src/components/LoadExplore/SECard.js
+  Line 29:20:  'setCollapse' is assigned a value but never used                                                                                                                                                                                                                                                            no-unused-vars
+  Line 60:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 69:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback                                         react-hooks/exhaustive-deps
+
+src/components/LoadExplore/index.js
+  Line 3:27:   'HTMLSelect' is defined but never used              no-unused-vars
+  Line 16:5:   'setAppMode' is assigned a value but never used     no-unused-vars
+  Line 27:10:  'jsZipNames' is assigned a value but never used     no-unused-vars
+  Line 27:22:  'setJsZipNames' is assigned a value but never used  no-unused-vars
+  Line 28:10:  'jsZipObjs' is assigned a value but never used      no-unused-vars
+  Line 28:21:  'setJSZipObjs' is assigned a value but never used   no-unused-vars
+
+src/components/Markers/index.js
+  Line 16:3:   'ButtonGroup' is defined but never used                                                                                                                                                                                                                                                                                                 no-unused-vars
+  Line 56:22:  'setIsExpanded' is assigned a value but never used                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 175:6:  React Hook useEffect has missing dependencies: 'markerFilter?.delta', 'markerFilter?.detected', 'markerFilter?.lfc', and 'markerFilter?.mean'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setMarkerFilter' needs the current value of 'markerFilter.lfc'  react-hooks/exhaustive-deps
+  Line 203:6:  React Hook useMemo has missing dependencies: 'geneColSel', 'genesInfo', 'minMaxs', and 'props?.selectedModality'. Either include them or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  Line 269:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+  Line 308:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+  Line 356:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/H5ADCard.js
+  Line 62:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                                         react-hooks/exhaustive-deps
+  Line 71:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback              react-hooks/exhaustive-deps
+  Line 116:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'inputOpts', 'options', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 116:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                         react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/MatrixMarketCard.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 103:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 103:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 115:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 115:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 127:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 127:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/RDSSECard.js
+  Line 53:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 62:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 85:6:   React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 85:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 108:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 108:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 131:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 131:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 141:9:  'getCamelCaseKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+
+src/components/NewAnalysis/TenxHDF5Card.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 74:9:   'getAssayNameKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+  Line 132:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 132:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 144:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 144:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 157:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 157:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/ZippedADBCard.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 81:6:   React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 81:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 104:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 104:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 127:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 127:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 137:9:  'getCamelCaseKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+
+src/components/NewAnalysis/index.js
+  Line 1293:34:  Array.prototype.map() expects a value to be returned at the end of arrow function  array-callback-return
+
+src/components/NewAnalysis/utils.js
+  Line 9:18:   'v' is assigned a value but never used  no-unused-vars
+  Line 55:30:  Expected '===' and instead saw '=='     eqeqeq
+
+src/components/ParamSelection/index.js
+  Line 118:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 302:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 317:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 1213:12:  'removeAllHuman' is defined but never used                                                                                                                                             no-unused-vars
+  Line 1244:12:  'removeAllMouse' is defined but never used                                                                                                                                             no-unused-vars
+  Line 1780:9:   'render_crisprnorm' is assigned a value but never used                                                                                                                                 no-unused-vars
+
+src/components/Plots/BarPlot.js
+  Line 3:10:    'saveSVG' is defined but never used                                                                                                                                                                                                                                                                         no-unused-vars
+  Line 4:10:    'Button' is defined but never used                                                                                                                                                                                                                                                                          no-unused-vars
+  Line 107:28:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                         eqeqeq
+  Line 120:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+
+src/components/Plots/DimPlot.js
+  Line 6:3:      'ButtonGroup' is defined but never used                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  Line 15:3:     'InputGroup' is defined but never used                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  Line 79:10:    'spec' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 92:7:     'resizeTimeout' is defined but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 92:22:    'resizeObserver' is defined but never used                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 138:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'genesInfo', 'props?.selectedClusterIndex', 'props?.selectedClusterSummary', and 'props?.selectedModality'. Either include them or remove the dependency array                                                                                                                                                     react-hooks/exhaustive-deps
+  Line 140:5:    React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                                                                                        react-hooks/exhaustive-deps
+  Line 185:6:    React Hook useEffect has a missing dependency: 'props?.featureScoreCache'. Either include it or remove the dependency array                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  Line 262:38:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 274:61:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 518:6:    React Hook useEffect has missing dependencies: 'max', 'props', 'renderCount', 'scatterplot', and 'toggleFactorsGradient'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 558:23:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 629:6:    React Hook useEffect has missing dependencies: 'annotationCols', 'default_cluster', 'factorState', 'max', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect     react-hooks/exhaustive-deps
+  Line 716:19:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 722:6:    React Hook useEffect has missing dependencies: 'factorState' and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                  react-hooks/exhaustive-deps
+  Line 724:12:   'handleSaveEmbedding' is defined but never used                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  Line 789:12:   'handleSavePNG' is defined but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 1044:20:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 1125:35:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 1209:43:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+
+src/components/Plots/QCPlotMgr.js
+  Line 38:66:  Array.prototype.map() expects a value to be returned at the end of arrow function  array-callback-return
+
+src/components/Plots/SVGDimPlot.js
+  Line 1:10:  'max' is defined but never used  no-unused-vars
+
+src/components/Plots/StackedHistogram.js
+  Line 144:6:  React Hook useEffect has missing dependencies: 'props?.clusterlabel', 'props?.clusters', 'props?.color', 'props?.data', and 'props?.width'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/Plots/ViolinPlotBasic.js
+  Line 3:10:  'saveSVG' is defined but never used  no-unused-vars
+  Line 4:10:  'Button' is defined but never used   no-unused-vars
+
+src/components/Plots/colors.js
+  Line 44:16:  Expected '===' and instead saw '=='  eqeqeq
+  Line 46:23:  Expected '===' and instead saw '=='  eqeqeq
+  Line 64:38:  Expected '===' and instead saw '=='  eqeqeq
+
+src/components/Plots/rainbowvis.js
+  Line 7:3:   'use strict' is unnecessary inside of modules  strict
+  Line 84:3:  'use strict' is unnecessary inside of modules  strict
+
+src/components/Plots/uDimPlot.js
+  Line 61:24:  Expected '===' and instead saw '=='                                                                                                 eqeqeq
+  Line 65:24:  Expected '!==' and instead saw '!='                                                                                                 eqeqeq
+  Line 77:6:   React Hook useEffect has missing dependencies: 'data?.color' and 'scatterplot'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/Plots/utils.js
+  Line 188:18:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+src/components/Subcluster/index.js
+  Line 37:42:  'setAnnotationCols' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 37:61:  'setAnnotationObj' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 53:9:   The 'allCols' conditional could make the dependencies of useEffect Hook (at line 66) change on every render. To fix this, wrap the initialization of 'allCols' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+src/context/AppContext.js
+  Line 51:10:  'exportState' is assigned a value but never used     no-unused-vars
+  Line 51:23:  'setExportState' is assigned a value but never used  no-unused-vars
+
+src/index.js
+  Line 5:13:  'serviceWorkerRegistration' is defined but never used  no-unused-vars
+
+src/utils/utils.js
+  Line 135:7:  Unreachable code  no-unreachable
+
+src/workers/explorer.worker.js
+  Line 15:7:    'default_cluster' is assigned a value but never used              no-unused-vars
+  Line 18:5:    'superstate' is assigned a value but never used                   no-unused-vars
+  Line 240:17:  'finput' is assigned a value but never used                       no-unused-vars
+  Line 595:41:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+  Line 623:28:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+src/workers/helpers.js
+  Line 42:33:   Expected '===' and instead saw '=='                                        eqeqeq
+  Line 43:17:   'key' is assigned a value but never used                                   no-unused-vars
+  Line 48:7:    Expected an error object to be thrown                                      no-throw-literal
+  Line 94:41:   Function declared in a loop contains unsafe references to variable(s) 'b'  no-loop-func
+  Line 94:61:   Expected '===' and instead saw '=='                                        eqeqeq
+  Line 191:9:   'blocks' is already defined                                                no-redeclare
+  Line 217:9:   'blocks' is already defined                                                no-redeclare
+  Line 234:17:  'k' is assigned a value but never used                                     no-unused-vars
+  Line 247:9:   'blocks' is already defined                                                no-redeclare
+  Line 268:24:  Expected '===' and instead saw '=='                                        eqeqeq
+
+src/workers/scran.worker.js
+  Line 18:3:    'fetchWithProgress' is defined but never used                     no-unused-vars
+  Line 177:10:  'linkKanaDb' is defined but never used                            no-unused-vars
+  Line 190:16:  'unserializeAllSteps' is defined but never used                   no-unused-vars
+  Line 299:15:  'k' is assigned a value but never used                            no-unused-vars
+  Line 483:23:  'k' is assigned a value but never used                            no-unused-vars
+  Line 656:21:  'k' is assigned a value but never used                            no-unused-vars
+  Line 991:26:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+WARNING in ./node_modules/scran.js/browser/wasm/scran.worker.js 32:26-50
+Critical dependency: the request of a dependency is an expression
+
+WARNING in [entry] [initial]
+Circular dependency between chunks with runtime (main, node_modules_bakana_browser_steps_tsne_worker_js, node_modules_bakana_browser_steps_umap_worker_js, node_modules_scran_js_browser_wasm_scran_worker_js, src_workers_explorer_worker_js, src_workers_scran_worker_js)
+This prevents using hashes of each other and should be avoided.
+
+WARNING in [eslint] 
+src/components/AnalysisMode/index.js
+  Line 51:8:     'logo' is defined but never used                                                                                                                                                                                                       no-unused-vars
+  Line 68:10:    'loading' is assigned a value but never used                                                                                                                                                                                           no-unused-vars
+  Line 149:10:   'cellSubsetData' is assigned a value but never used                                                                                                                                                                                    no-unused-vars
+  Line 152:10:   'fSelectionData' is assigned a value but never used                                                                                                                                                                                    no-unused-vars
+  Line 288:10:   'fsetGeneExprCache' is assigned a value but never used                                                                                                                                                                                 no-unused-vars
+  Line 288:29:   'setFsetGeneExprCache' is assigned a value but never used                                                                                                                                                                              no-unused-vars
+  Line 338:6:    React Hook useEffect has a missing dependency: 'preInputFiles'. Either include it or remove the dependency array                                                                                                                       react-hooks/exhaustive-deps
+  Line 391:6:    React Hook useEffect has missing dependencies: 'initLoadState' and 'setInitLoadState'. Either include them or remove the dependency array                                                                                              react-hooks/exhaustive-deps
+  Line 431:6:    React Hook useEffect has a missing dependency: 'selectedMarkerAnnotation'. Either include it or remove the dependency array                                                                                                            react-hooks/exhaustive-deps
+  Line 453:6:    React Hook useEffect has a missing dependency: 'delCustomSelection'. Either include it or remove the dependency array                                                                                                                  react-hooks/exhaustive-deps
+  Line 475:6:    React Hook useEffect has a missing dependency: 'selectedCluster'. Either include it or remove the dependency array                                                                                                                     react-hooks/exhaustive-deps
+  Line 507:6:    React Hook useEffect has missing dependencies: 'params' and 'selectedRedDim'. Either include them or remove the dependency array                                                                                                       react-hooks/exhaustive-deps
+  Line 545:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'inputData.genes', 'setGeneColSel', and 'setGenesInfo'. Either include them or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 575:6:    React Hook useEffect has missing dependencies: 'inputFiles' and 'params'. Either include them or remove the dependency array                                                                                                           react-hooks/exhaustive-deps
+  Line 602:6:    React Hook useEffect has missing dependencies: 'inputFiles' and 'params'. Either include them or remove the dependency array                                                                                                           react-hooks/exhaustive-deps
+  Line 632:6:    React Hook useEffect has missing dependencies: 'datasetName' and 'inputFiles?.files'. Either include them or remove the dependency array                                                                                               react-hooks/exhaustive-deps
+  Line 725:6:    React Hook useEffect has missing dependencies: 'fsetClusterRank', 'selectedFsetAnnotation', and 'selectedFsetModality'. Either include them or remove the dependency array                                                             react-hooks/exhaustive-deps
+  Line 747:11:   'options' is assigned a value but never used                                                                                                                                                                                           no-unused-vars
+  Line 769:6:    React Hook useEffect has missing dependencies: 'setInputFiles', 'setPreInputFiles', and 'setPreInputOptionsStatus'. Either include them or remove the dependency array                                                                 react-hooks/exhaustive-deps
+  Line 819:6:    React Hook useEffect has missing dependencies: 'cellLabelData', 'default_cluster', 'fsetEnirchDetails', 'markersORFSets', 'selectedClusterSummary.length', and 'selectedModality'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 850:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                                                                react-hooks/exhaustive-deps
+  Line 914:28:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 924:35:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 942:35:   Expected '===' and instead saw '=='                                                                                                                                                                                                    eqeqeq
+  Line 1390:24:  'setCellAnnWidth' is assigned a value but never used                                                                                                                                                                                   no-unused-vars
+  Line 2070:11:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                  react/jsx-no-target-blank
+
+src/components/CellAnnotation/index.js
+  Line 21:3:    'defaultColor' is defined but never used                                                                                                                                                                                                                                                                    no-unused-vars
+  Line 96:6:    React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 411:19:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                       react/jsx-no-target-blank
+
+src/components/ClusterAnnotation/index.js
+  Line 117:6:  React Hook useEffect has missing dependencies: 'getNonNumericColumns' and 'selectedMetadata'. Either include them or remove the dependency array                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  Line 152:6:  React Hook useEffect has missing dependencies: 'annotationColumnName', 'clusterAnnotations', 'currentAnnotations', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+
+src/components/DotPlot/index.js
+  Line 108:10:  'validGenes' is assigned a value but never used                                                                   no-unused-vars
+  Line 306:6:   React Hook useEffect has a missing dependency: 'renderDotplot'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/ExploreMode/index.js
+  Line 36:8:     'MarkerPlot' is defined but never used                                                                                                                                                 no-unused-vars
+  Line 43:8:     'logo' is defined but never used                                                                                                                                                       no-unused-vars
+  Line 45:8:     'FeatureSetEnrichment' is defined but never used                                                                                                                                       no-unused-vars
+  Line 46:8:     'CellAnnotation' is defined but never used                                                                                                                                             no-unused-vars
+  Line 59:10:    'loading' is assigned a value but never used                                                                                                                                           no-unused-vars
+  Line 106:18:   'setQcDims' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 107:10:   'qcData' is assigned a value but never used                                                                                                                                            no-unused-vars
+  Line 107:18:   'setQcData' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 110:10:   'cellSubsetData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 110:26:   'setCellSubsetData' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 113:10:   'fSelectionData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 113:26:   'setFSelectionData' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 116:10:   'pcaVarExp' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 116:21:   'setPcaVarExp' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 129:23:   'setAnimateData' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 132:10:   'cellLabelData' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 144:10:   'showQCLoader' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 145:10:   'showPCALoader' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 145:25:   'setShowPCALoader' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 146:10:   'showNClusLoader' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 147:10:   'showCellLabelLoader' is assigned a value but never used                                                                                                                               no-unused-vars
+  Line 148:10:   'showFsetLoader' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 198:10:   'triggerAnimation' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 204:23:   'setClusterRank' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 206:29:   'setSelectedVSCluster' is assigned a value but never used                                                                                                                              no-unused-vars
+  Line 208:10:   'clusterColors' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 208:25:   'setClusterColors' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 218:10:   'highlightPoints' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 227:26:   'setMarkersOrFsets' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 229:27:   'setFsetClusterRank' is assigned a value but never used                                                                                                                                no-unused-vars
+  Line 231:10:   'featureScores' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 231:25:   'setFeatureScores' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 233:31:   'setSelectedFsetCluster' is assigned a value but never used                                                                                                                            no-unused-vars
+  Line 243:10:   'featureSetGeneIndex' is assigned a value but never used                                                                                                                               no-unused-vars
+  Line 243:31:   'setFeatureSetGeneIndex' is assigned a value but never used                                                                                                                            no-unused-vars
+  Line 249:10:   'fsetGeneExprCache' is assigned a value but never used                                                                                                                                 no-unused-vars
+  Line 249:29:   'setFsetGeneExprCache' is assigned a value but never used                                                                                                                              no-unused-vars
+  Line 251:33:   'setSelectedFsetVSCluster' is assigned a value but never used                                                                                                                          no-unused-vars
+  Line 343:6:    React Hook useEffect has a missing dependency: 'selectedMarkerAnnotation'. Either include it or remove the dependency array                                                            react-hooks/exhaustive-deps
+  Line 365:6:    React Hook useEffect has a missing dependency: 'delCustomSelection'. Either include it or remove the dependency array                                                                  react-hooks/exhaustive-deps
+  Line 387:6:    React Hook useEffect has a missing dependency: 'selectedCluster'. Either include it or remove the dependency array                                                                     react-hooks/exhaustive-deps
+  Line 439:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'inputData.genes', 'setGeneColSel', and 'setGenesInfo'. Either include them or remove the dependency array                react-hooks/exhaustive-deps
+  Line 450:6:    React Hook useEffect has missing dependencies: 'initFset' and 'initFsetReq'. Either include them or remove the dependency array                                                        react-hooks/exhaustive-deps
+  Line 482:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 511:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 532:6:    React Hook useEffect has missing dependencies: 'fsetClusterRank', 'selectedFsetAnnotation', and 'selectedFsetModality'. Either include them or remove the dependency array             react-hooks/exhaustive-deps
+  Line 562:6:    React Hook useEffect has a missing dependency: 'selectedFsetModality'. Either include it or remove the dependency array                                                                react-hooks/exhaustive-deps
+  Line 718:15:   Expected '===' and instead saw '=='                                                                                                                                                    eqeqeq
+  Line 738:49:   Expected '===' and instead saw '=='                                                                                                                                                    eqeqeq
+  Line 1008:10:  'markersWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1008:24:  'setMarkersWidth' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 1011:10:  'fsetWidth' is assigned a value but never used                                                                                                                                         no-unused-vars
+  Line 1011:21:  'setFsetWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1014:10:  'cellAnnWidth' is assigned a value but never used                                                                                                                                      no-unused-vars
+  Line 1014:24:  'setCellAnnWidth' is assigned a value but never used                                                                                                                                   no-unused-vars
+  Line 1020:9:   'getGalleryStyles' is assigned a value but never used                                                                                                                                  no-unused-vars
+  Line 1610:11:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+
+src/components/FeatureSets/index.js
+  Line 32:3:    'defaultColor' is defined but never used                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 68:10:   'pvalMinMax' is assigned a value but never used                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  Line 84:9:    'detectedScale' is assigned a value but never used                                                                                                                                                                                                                                                                                                                            no-unused-vars
+  Line 95:6:    React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                                    react-hooks/exhaustive-deps
+  Line 220:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                                    react-hooks/exhaustive-deps
+  Line 274:30:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                                                                                                              array-callback-return
+  Line 315:6:   React Hook useEffect has missing dependencies: 'fsetFilter?.count', 'fsetFilter?.pvalue', 'props?.fsetClusterRank', 'props?.selectedFsetAnnotation', and 'props?.selectedFsetCluster'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setFsetFilter' needs the current value of 'fsetFilter.count'  react-hooks/exhaustive-deps
+  Line 320:22:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                                                                                                              array-callback-return
+  Line 353:6:   React Hook useMemo has a missing dependency: 'minMaxs'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  Line 376:17:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                                                                                         react/jsx-no-target-blank
+  Line 389:15:  Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations                                                                                                                                                                                         react/jsx-no-target-blank
+
+src/components/Gallery/SortableItem.js
+  Line 49:5:  Expected a default case  default-case
+
+src/components/Gallery/index.js
+  Line 4:8:     'CellLabelTable' is defined but never used                                                                                                                                                                                                                                                no-unused-vars
+  Line 8:10:    'Card' is defined but never used                                                                                                                                                                                                                                                          no-unused-vars
+  Line 8:16:    'Elevation' is defined but never used                                                                                                                                                                                                                                                     no-unused-vars
+  Line 8:27:    'Classes' is defined but never used                                                                                                                                                                                                                                                       no-unused-vars
+  Line 25:10:   'Popover2' is defined but never used                                                                                                                                                                                                                                                      no-unused-vars
+  Line 99:6:    React Hook useEffect has a missing dependency: 'get_children'. Either include it or remove the dependency array                                                                                                                                                                           react-hooks/exhaustive-deps
+  Line 122:35:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 148:6:   React Hook useEffect has missing dependencies: 'defaultItems', 'get_image_title', 'itemContent', 'props?.colorByAnnotation', 'props?.highlightPoints', 'props?.redDimsData', 'props?.selectedPoints', and 'props?.setSelectedPoints'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:53:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 199:23:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 208:48:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+  Line 272:49:  Array.prototype.map() expects a return value from arrow function                                                                                                                                                                                                                          array-callback-return
+
+src/components/LoadAnalysis/index.js
+  Line 86:6:  React Hook useEffect has a missing dependency: 'tabSelected'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/LoadExplore/H5ADCard.js
+  Line 27:20:  'setCollapse' is assigned a value but never used                                                                                                                                                                                                                                                                                                            no-unused-vars
+  Line 44:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                  react-hooks/exhaustive-deps
+  Line 52:6:   React Hook useEffect has missing dependencies: 'inputOpts' and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback                                                                                                   react-hooks/exhaustive-deps
+  Line 54:9:   'handleRemove' is assigned a value but never used                                                                                                                                                                                                                                                                                                           no-unused-vars
+  Line 83:6:   React Hook useEffect has missing dependencies: 'dsMeta.all_features.columns', 'options', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 83:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+
+src/components/LoadExplore/SECard.js
+  Line 29:20:  'setCollapse' is assigned a value but never used                                                                                                                                                                                                                                                            no-unused-vars
+  Line 60:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 69:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback                                         react-hooks/exhaustive-deps
+
+src/components/LoadExplore/index.js
+  Line 3:27:   'HTMLSelect' is defined but never used              no-unused-vars
+  Line 16:5:   'setAppMode' is assigned a value but never used     no-unused-vars
+  Line 27:10:  'jsZipNames' is assigned a value but never used     no-unused-vars
+  Line 27:22:  'setJsZipNames' is assigned a value but never used  no-unused-vars
+  Line 28:10:  'jsZipObjs' is assigned a value but never used      no-unused-vars
+  Line 28:21:  'setJSZipObjs' is assigned a value but never used   no-unused-vars
+
+src/components/Markers/index.js
+  Line 16:3:   'ButtonGroup' is defined but never used                                                                                                                                                                                                                                                                                                 no-unused-vars
+  Line 56:22:  'setIsExpanded' is assigned a value but never used                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 175:6:  React Hook useEffect has missing dependencies: 'markerFilter?.delta', 'markerFilter?.detected', 'markerFilter?.lfc', and 'markerFilter?.mean'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setMarkerFilter' needs the current value of 'markerFilter.lfc'  react-hooks/exhaustive-deps
+  Line 203:6:  React Hook useMemo has missing dependencies: 'geneColSel', 'genesInfo', 'minMaxs', and 'props?.selectedModality'. Either include them or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  Line 269:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+  Line 308:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+  Line 356:6:  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                              react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/H5ADCard.js
+  Line 62:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                                         react-hooks/exhaustive-deps
+  Line 71:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback              react-hooks/exhaustive-deps
+  Line 116:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'inputOpts', 'options', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 116:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                         react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/MatrixMarketCard.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 103:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 103:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 115:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 115:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 127:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 127:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/RDSSECard.js
+  Line 53:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 62:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 85:6:   React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 85:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 108:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 108:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 131:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 131:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 141:9:  'getCamelCaseKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+
+src/components/NewAnalysis/TenxHDF5Card.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 74:9:   'getAssayNameKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+  Line 132:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 132:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 144:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 144:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 157:6:  React Hook useEffect has missing dependencies: 'dsMeta', 'getFTypeKey', 'init2', and 'options'. Either include them or remove the dependency array                                                                                                                   react-hooks/exhaustive-deps
+  Line 157:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+
+src/components/NewAnalysis/ZippedADBCard.js
+  Line 49:6:   React Hook useEffect has a missing dependency: 'init2'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+  Line 58:6:   React Hook useEffect has missing dependencies: 'index', 'inputOpts', and 'setInputOpts'. Either include them or remove the dependency array. If 'setInputOpts' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+  Line 81:6:   React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 81:7:   React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 104:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 104:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 127:6:  React Hook useEffect has missing dependencies: 'options', 'preflight.modality_assay_names', and 'preflight.modality_features'. Either include them or remove the dependency array                                                                                    react-hooks/exhaustive-deps
+  Line 127:7:  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                             react-hooks/exhaustive-deps
+  Line 137:9:  'getCamelCaseKey' is assigned a value but never used                                                                                                                                                                                                                 no-unused-vars
+
+src/components/NewAnalysis/index.js
+  Line 1293:34:  Array.prototype.map() expects a value to be returned at the end of arrow function  array-callback-return
+
+src/components/NewAnalysis/utils.js
+  Line 9:18:   'v' is assigned a value but never used  no-unused-vars
+  Line 55:30:  Expected '===' and instead saw '=='     eqeqeq
+
+src/components/ParamSelection/index.js
+  Line 118:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 302:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 317:15:   Using target="_blank" without rel="noreferrer" (which implies rel="noopener") is a security risk in older browsers: see https://mathiasbynens.github.io/rel-noopener/#recommendations  react/jsx-no-target-blank
+  Line 1213:12:  'removeAllHuman' is defined but never used                                                                                                                                             no-unused-vars
+  Line 1244:12:  'removeAllMouse' is defined but never used                                                                                                                                             no-unused-vars
+  Line 1780:9:   'render_crisprnorm' is assigned a value but never used                                                                                                                                 no-unused-vars
+
+src/components/Plots/BarPlot.js
+  Line 3:10:    'saveSVG' is defined but never used                                                                                                                                                                                                                                                                         no-unused-vars
+  Line 4:10:    'Button' is defined but never used                                                                                                                                                                                                                                                                          no-unused-vars
+  Line 107:28:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                         eqeqeq
+  Line 120:6:   React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+
+src/components/Plots/DimPlot.js
+  Line 6:3:      'ButtonGroup' is defined but never used                                                                                                                                                                                                                                                                                                                                         no-unused-vars
+  Line 15:3:     'InputGroup' is defined but never used                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  Line 79:10:    'spec' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 92:7:     'resizeTimeout' is defined but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 92:22:    'resizeObserver' is defined but never used                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  Line 138:6:    React Hook useEffect has missing dependencies: 'geneColSel', 'genesInfo', 'props?.selectedClusterIndex', 'props?.selectedClusterSummary', and 'props?.selectedModality'. Either include them or remove the dependency array                                                                                                                                                     react-hooks/exhaustive-deps
+  Line 140:5:    React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                                                                                                                                        react-hooks/exhaustive-deps
+  Line 185:6:    React Hook useEffect has a missing dependency: 'props?.featureScoreCache'. Either include it or remove the dependency array                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  Line 262:38:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 274:61:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 518:6:    React Hook useEffect has missing dependencies: 'max', 'props', 'renderCount', 'scatterplot', and 'toggleFactorsGradient'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  Line 558:23:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 629:6:    React Hook useEffect has missing dependencies: 'annotationCols', 'default_cluster', 'factorState', 'max', and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect     react-hooks/exhaustive-deps
+  Line 716:19:   Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 722:6:    React Hook useEffect has missing dependencies: 'factorState' and 'props'. Either include them or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect                                                  react-hooks/exhaustive-deps
+  Line 724:12:   'handleSaveEmbedding' is defined but never used                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  Line 789:12:   'handleSavePNG' is defined but never used                                                                                                                                                                                                                                                                                                                                       no-unused-vars
+  Line 1044:20:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 1125:35:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+  Line 1209:43:  Expected '===' and instead saw '=='                                                                                                                                                                                                                                                                                                                                             eqeqeq
+
+src/components/Plots/QCPlotMgr.js
+  Line 38:66:  Array.prototype.map() expects a value to be returned at the end of arrow function  array-callback-return
+
+src/components/Plots/SVGDimPlot.js
+  Line 1:10:  'max' is defined but never used  no-unused-vars
+
+src/components/Plots/StackedHistogram.js
+  Line 144:6:  React Hook useEffect has missing dependencies: 'props?.clusterlabel', 'props?.clusters', 'props?.color', 'props?.data', and 'props?.width'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/Plots/ViolinPlotBasic.js
+  Line 3:10:  'saveSVG' is defined but never used  no-unused-vars
+  Line 4:10:  'Button' is defined but never used   no-unused-vars
+
+src/components/Plots/colors.js
+  Line 44:16:  Expected '===' and instead saw '=='  eqeqeq
+  Line 46:23:  Expected '===' and instead saw '=='  eqeqeq
+  Line 64:38:  Expected '===' and instead saw '=='  eqeqeq
+
+src/components/Plots/rainbowvis.js
+  Line 7:3:   'use strict' is unnecessary inside of modules  strict
+  Line 84:3:  'use strict' is unnecessary inside of modules  strict
+
+src/components/Plots/uDimPlot.js
+  Line 61:24:  Expected '===' and instead saw '=='                                                                                                 eqeqeq
+  Line 65:24:  Expected '!==' and instead saw '!='                                                                                                 eqeqeq
+  Line 77:6:   React Hook useEffect has missing dependencies: 'data?.color' and 'scatterplot'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src/components/Plots/utils.js
+  Line 188:18:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+src/components/Subcluster/index.js
+  Line 37:42:  'setAnnotationCols' is assigned a value but never used                                                                                                                                    no-unused-vars
+  Line 37:61:  'setAnnotationObj' is assigned a value but never used                                                                                                                                     no-unused-vars
+  Line 53:9:   The 'allCols' conditional could make the dependencies of useEffect Hook (at line 66) change on every render. To fix this, wrap the initialization of 'allCols' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+src/context/AppContext.js
+  Line 51:10:  'exportState' is assigned a value but never used     no-unused-vars
+  Line 51:23:  'setExportState' is assigned a value but never used  no-unused-vars
+
+src/index.js
+  Line 5:13:  'serviceWorkerRegistration' is defined but never used  no-unused-vars
+
+src/utils/utils.js
+  Line 135:7:  Unreachable code  no-unreachable
+
+src/workers/explorer.worker.js
+  Line 15:7:    'default_cluster' is assigned a value but never used              no-unused-vars
+  Line 18:5:    'superstate' is assigned a value but never used                   no-unused-vars
+  Line 240:17:  'finput' is assigned a value but never used                       no-unused-vars
+  Line 595:41:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+  Line 623:28:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+src/workers/helpers.js
+  Line 42:33:   Expected '===' and instead saw '=='                                        eqeqeq
+  Line 43:17:   'key' is assigned a value but never used                                   no-unused-vars
+  Line 48:7:    Expected an error object to be thrown                                      no-throw-literal
+  Line 94:41:   Function declared in a loop contains unsafe references to variable(s) 'b'  no-loop-func
+  Line 94:61:   Expected '===' and instead saw '=='                                        eqeqeq
+  Line 191:9:   'blocks' is already defined                                                no-redeclare
+  Line 217:9:   'blocks' is already defined                                                no-redeclare
+  Line 234:17:  'k' is assigned a value but never used                                     no-unused-vars
+  Line 247:9:   'blocks' is already defined                                                no-redeclare
+  Line 268:24:  Expected '===' and instead saw '=='                                        eqeqeq
+
+src/workers/scran.worker.js
+  Line 18:3:    'fetchWithProgress' is defined but never used                     no-unused-vars
+  Line 177:10:  'linkKanaDb' is defined but never used                            no-unused-vars
+  Line 190:16:  'unserializeAllSteps' is defined but never used                   no-unused-vars
+  Line 299:15:  'k' is assigned a value but never used                            no-unused-vars
+  Line 483:23:  'k' is assigned a value but never used                            no-unused-vars
+  Line 656:21:  'k' is assigned a value but never used                            no-unused-vars
+  Line 991:26:  Array.prototype.map() expects a return value from arrow function  array-callback-return
+
+webpack compiled with 3 warnings
+Terminated

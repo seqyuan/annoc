@@ -115,13 +115,16 @@
   margin-top: 10px;
   max-width: 100%;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Override Blueprint min-width so input shrinks and Browse button stays visible */
 .dotplot-file-upload .bp4-file-input {
   display: flex;
   min-width: 0;
-  width: 100%;
+  flex: 1;
 }
 .dotplot-file-upload .bp4-file-input input {
   min-width: 0 !important;

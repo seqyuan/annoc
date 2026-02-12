@@ -79,7 +79,7 @@ const DimPlot = (props) => {
   const [spec, setSpec] = useState(null);
 
   // point size
-  const [pointSize, setPointSize] = useState(3);
+  const [pointSize, setPointSize] = useState(1);
 
   // variation feature selector states
   const [selectedGeneCol, setSelectedGeneCol] = useState(null);
@@ -1184,6 +1184,8 @@ const DimPlot = (props) => {
                 <ul style={{ fontSize: "small" }}>
                   {plotGroups &&
                     plotGroups.map((x, i) => {
+                      // 计算当前类型的细胞数量
+                      const cellCount = plotFactors ? plotFactors.filter(f => f === i).length : 0;
                       return (
                         <li
                           key={i}
@@ -1215,7 +1217,7 @@ const DimPlot = (props) => {
                             }
                           }}
                         >
-                          {x !== null && x !== undefined ? x : "NA"}
+                          {x !== null && x !== undefined ? x : "NA"} ({cellCount})
                         </li>
                       );
                     })}
@@ -1369,6 +1371,19 @@ const DimPlot = (props) => {
                       })}
                     </ul>
                   </div>
+                  {props?.onDownloadAllSelections && (
+                    <div style={{ marginTop: "8px" }}>
+                      <Tooltip2 content="Download all selections (barcode + name) as TSV" placement="top">
+                        <Button
+                          small={true}
+                          icon="download"
+                          onClick={props.onDownloadAllSelections}
+                        >
+                          Download All
+                        </Button>
+                      </Tooltip2>
+                    </div>
+                  )}
 
                   {props?.selectedPoints && props?.selectedPoints.length > 0 ? (
                     <div>
@@ -1401,8 +1416,8 @@ const DimPlot = (props) => {
             )}
           </div>
 
-        <Callout style={{ marginTop: "5px" }}>
-          <Label style={{ marginBottom: "0", fontSize: "x-small" }}>
+        <Callout style={{ marginTop: "2px" }}>
+          <Label className="point-size-label" style={{ fontSize: "x-small" }}>
             Point Size:
             <NumericInput
               small

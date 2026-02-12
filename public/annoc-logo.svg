@@ -1,0 +1,92 @@
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Define the colorful segments as individual circles -->
+
+  <!-- Red-Orange gradient segment (top-left to top) -->
+  <path d="M 256 16 A 240 240 0 0 1 362.7 48.7 L 256 256 Z" fill="#E74C3C"/>
+  <path d="M 362.7 48.7 A 240 240 0 0 1 432.5 125 L 256 256 Z" fill="#E67E22"/>
+
+  <!-- Orange-Yellow segment (top to right) -->
+  <path d="M 432.5 125 A 240 240 0 0 1 463.3 149.3 L 256 256 Z" fill="#F39C12"/>
+  <path d="M 463.3 149.3 A 240 240 0 0 1 496 256 L 256 256 Z" fill="#F1C40F"/>
+
+  <!-- Yellow-Green segment (right to bottom-right) -->
+  <path d="M 496 256 A 240 240 0 0 1 463.3 362.7 L 256 256 Z" fill="#2ECC71"/>
+  <path d="M 463.3 362.7 A 240 240 0 0 1 387 432.5 L 256 256 Z" fill="#27AE60"/>
+
+  <!-- Green-Blue segment (bottom-right to bottom) -->
+  <path d="M 387 432.5 A 240 240 0 0 1 256 496 L 256 256 Z" fill="#3498DB"/>
+  <path d="M 256 496 A 240 240 0 0 1 149.3 463.3 L 256 256 Z" fill="#2980B9"/>
+
+  <!-- Blue-Purple segment (bottom to bottom-left) -->
+  <path d="M 149.3 463.3 A 240 240 0 0 1 79.5 387 L 256 256 Z" fill="#9B59B6"/>
+  <path d="M 79.5 387 A 240 240 0 0 1 48.7 362.7 L 256 256 Z" fill="#8E44AD"/>
+
+  <!-- Purple-Red segment (bottom-left to left) -->
+  <path d="M 48.7 362.7 A 240 240 0 0 1 16 256 L 256 256 Z" fill="#E91E63"/>
+  <path d="M 16 256 A 240 240 0 0 1 48.7 149.3 L 256 256 Z" fill="#C0392B"/>
+
+  <!-- Red segment completing the circle -->
+  <path d="M 48.7 149.3 A 240 240 0 0 1 125 79.5 L 256 256 Z" fill="#E74C3C"/>
+  <path d="M 125 79.5 A 240 240 0 0 1 256 16 L 256 256 Z" fill="#E74C3C"/>
+
+  <!-- Add white dots pattern for texture -->
+  <g opacity="0.4" fill="white">
+    <!-- Scattered dots around the circle -->
+    <circle cx="140" cy="140" r="6"/>
+    <circle cx="110" cy="180" r="5"/>
+    <circle cx="90" cy="230" r="6"/>
+    <circle cx="95" cy="280" r="5"/>
+    <circle cx="120" cy="330" r="6"/>
+    <circle cx="160" cy="370" r="5"/>
+    <circle cx="210" cy="390" r="6"/>
+    <circle cx="260" cy="400" r="5"/>
+    <circle cx="310" cy="390" r="6"/>
+    <circle cx="360" cy="370" r="5"/>
+    <circle cx="390" cy="330" r="6"/>
+    <circle cx="410" cy="280" r="5"/>
+    <circle cx="415" cy="230" r="6"/>
+    <circle cx="400" cy="180" r="5"/>
+    <circle cx="370" cy="140" r="6"/>
+    <circle cx="330" cy="110" r="5"/>
+    <circle cx="280" cy="90" r="6"/>
+    <circle cx="230" cy="85" r="5"/>
+    <circle cx="180" cy="95" r="6"/>
+
+    <!-- Additional scattered dots for more texture -->
+    <circle cx="160" cy="120" r="4"/>
+    <circle cx="200" cy="110" r="5"/>
+    <circle cx="290" cy="120" r="4"/>
+    <circle cx="340" cy="150" r="5"/>
+    <circle cx="380" cy="210" r="4"/>
+    <circle cx="390" cy="260" r="5"/>
+    <circle cx="370" cy="310" r="4"/>
+    <circle cx="330" cy="350" r="5"/>
+    <circle cx="280" cy="370" r="4"/>
+    <circle cx="220" cy="370" r="5"/>
+    <circle cx="170" cy="350" r="4"/>
+    <circle cx="130" cy="310" r="5"/>
+    <circle cx="110" cy="260" r="4"/>
+    <circle cx="120" cy="210" r="5"/>
+  </g>
+
+  <!-- White hollow letter A -->
+  <g>
+    <!-- Outer A shape -->
+    <path d="
+      M 256 130
+      L 360 390
+      L 310 390
+      L 292 340
+      L 220 340
+      L 202 390
+      L 152 390
+      L 256 130
+      Z
+      M 235 305
+      L 277 305
+      L 256 245
+      L 235 305
+      Z
+    " fill="white"/>
+  </g>
+</svg>

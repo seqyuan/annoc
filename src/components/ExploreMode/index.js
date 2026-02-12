@@ -40,7 +40,7 @@ import { AppContext } from "../../context/AppContext";
 
 import pkgVersion from "../../../package.json";
 
-import logo from "../../assets/kana-cropped.png";
+import logo from "../../assets/annoc-cropped.png";
 import "../../App.css";
 import FeatureSetEnrichment from "../FeatureSets";
 import CellAnnotation from "../CellAnnotation";
@@ -86,6 +86,7 @@ export function ExplorerMode() {
 
   // show various components, reacts to left side bar clicks
   const [showPanel, setShowPanel] = useState("explore-import");
+  const [clusterAnnotationCollapsed, setClusterAnnotationCollapsed] = useState(false);
 
   // modalities
   const [modality, setModality] = useState(null);
@@ -210,6 +211,8 @@ export function ExplorerMode() {
   const [customSelection, setCustomSelection] = useState({});
   // remove custom Selection
   const [delCustomSelection, setDelCustomSelection] = useState(null);
+  // request to download all selections
+  const [reqDownloadSelections, setReqDownloadSelections] = useState(false);
 
   // state captured
   const [restoreState, setRestoreState] = useState(null);
@@ -384,6 +387,17 @@ export function ExplorerMode() {
       }
     }
   }, [delCustomSelection]);
+
+  // Download all selections (barcode + name)
+  useEffect(() => {
+    if (reqDownloadSelections && Object.keys(customSelection).length > 0) {
+      scranWorker.postMessage({
+        type: "downloadAllSelections",
+        payload: { selections: customSelection },
+      });
+      setReqDownloadSelections(false);
+    }
+  }, [reqDownloadSelections, customSelection]);
 
   // get expression for a gene from worker
   useEffect(() => {
@@ -759,12 +773,36 @@ export function ExplorerMode() {
 
         let def_anno = categorical_annos[0];
         if (categorical_annos.length > 1) {
-          if (categorical_annos.indexOf(default_cluster) !== -1) {
-            def_anno = default_cluster;
-          } else if (categorical_annos.indexOf("cluster") !== -1) {
-            def_anno = "cluster";
-          } else if (categorical_annos.indexOf("clusters") !== -1) {
-            def_anno = "clusters";
+          // Priority 1: celltype or contains celltype
+          const celltypeAnno = categorical_annos.find(x => x.toLowerCase().includes('celltype'));
+          if (celltypeAnno) {
+            def_anno = celltypeAnno;
+          } else {
+            // Priority 2: subtype
+            const subtypeAnno = categorical_annos.find(x => x.toLowerCase().includes('subtype'));
+            if (subtypeAnno) {
+              def_anno = subtypeAnno;
+            } else {
+              // Priority 3: seurat_clusters
+              if (categorical_annos.indexOf("seurat_clusters") !== -1) {
+                def_anno = "seurat_clusters";
+              } else {
+                // Priority 4: leiden related
+                const leidenAnno = categorical_annos.find(x => x.toLowerCase().includes('leiden'));
+                if (leidenAnno) {
+                  def_anno = leidenAnno;
+                } else {
+                  // Priority 5: default_cluster, cluster, or clusters
+                  if (categorical_annos.indexOf(default_cluster) !== -1) {
+                    def_anno = default_cluster;
+                  } else if (categorical_annos.indexOf("cluster") !== -1) {
+                    def_anno = "cluster";
+                  } else if (categorical_annos.indexOf("clusters") !== -1) {
+                    def_anno = "clusters";
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -773,8 +811,9 @@ export function ExplorerMode() {
         setSelectedMarkerAnnotation(def_anno);
         setReqAnnotation(def_anno);
         setSelectedDimPlotCluster(def_anno);
-        setSelectedCellAnnAnnotation(def_anno);
-        setSelectedCellAnnCluster(resp.annotations[def_anno].values[0]);
+        // 注释掉自动设置 Cell Annotation 状态，避免自动触发远程数据下载
+        // setSelectedCellAnnAnnotation(def_anno);
+        // setSelectedCellAnnCluster(resp.annotations[def_anno].values[0]);
       }
       // setSelectedCluster(resp.annotations[0]);
       // setSelectedFsetModality(tmodality);
@@ -782,12 +821,41 @@ export function ExplorerMode() {
       setShowNClusLoader(false);
       setShowMarkerLoader(false);
     } else if (type === "choose_clustering_DATA") {
-      let def_anno = Object.keys(annotationCols)[0];
-      if (Object.keys(annotationCols).indexOf("clusters") !== -1) {
-        def_anno = "clusters";
-      } else if (Object.keys(annotationCols).indexOf("cluster") !== -1) {
-        def_anno = "cluster";
+      const annoKeys = Object.keys(annotationCols);
+      let def_anno = annoKeys[0];
+
+      if (annoKeys.length > 1) {
+        // Priority 1: celltype or contains celltype
+        const celltypeAnno = annoKeys.find(x => x.toLowerCase().includes('celltype'));
+        if (celltypeAnno) {
+          def_anno = celltypeAnno;
+        } else {
+          // Priority 2: subtype
+          const subtypeAnno = annoKeys.find(x => x.toLowerCase().includes('subtype'));
+          if (subtypeAnno) {
+            def_anno = subtypeAnno;
+          } else {
+            // Priority 3: seurat_clusters
+            if (annoKeys.indexOf("seurat_clusters") !== -1) {
+              def_anno = "seurat_clusters";
+            } else {
+              // Priority 4: leiden related
+              const leidenAnno = annoKeys.find(x => x.toLowerCase().includes('leiden'));
+              if (leidenAnno) {
+                def_anno = leidenAnno;
+              } else {
+                // Priority 5: clusters or cluster
+                if (annoKeys.indexOf("clusters") !== -1) {
+                  def_anno = "clusters";
+                } else if (annoKeys.indexOf("cluster") !== -1) {
+                  def_anno = "cluster";
+                }
+              }
+            }
+          }
+        }
       }
+
       setSelectedMarkerAnnotation(def_anno);
       setReqAnnotation(def_anno);
       setSelectedCluster(def_anno);
@@ -805,7 +873,26 @@ export function ExplorerMode() {
       }
     } else if (type === "embedding_DATA") {
       if (selectedRedDim === null) {
-        setSelectedRedDim(Object.keys(resp)[0]);
+        // Priority selection: UMAP > t-SNE > others
+        const keys = Object.keys(resp);
+        let defaultKey = keys[0]; // fallback to first key
+
+        // First priority: find UMAP
+        const umapKey = keys.find(k => k.toLowerCase().includes('umap'));
+        if (umapKey) {
+          defaultKey = umapKey;
+        } else {
+          // Second priority: find t-SNE
+          const tsneKey = keys.find(k => {
+            const lower = k.toLowerCase();
+            return lower.includes('tsne') || lower.includes('t-sne');
+          });
+          if (tsneKey) {
+            defaultKey = tsneKey;
+          }
+        }
+
+        setSelectedRedDim(defaultKey);
       }
 
       setRedDimsData(resp);
@@ -860,6 +947,24 @@ export function ExplorerMode() {
       setAnnotationObj(tmp);
 
       setReqAnnotation(null);
+    } else if (type === "downloadAllSelections_DATA") {
+      const { selections } = resp || {};
+      if (selections && selections.length > 0) {
+        const lines = ["selection_name\tbarcode"];
+        for (const { name, barcodes } of selections) {
+          const label = name.replace(/^cs/, "Selection ");
+          for (const b of barcodes) {
+            lines.push(`${label}\t${b}`);
+          }
+        }
+        const blob = new Blob([lines.join("\n")], { type: "text/tab-separated-values;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "selections_barcodes.tsv";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
     } else if (type === "findSubcluster_DATA") {
       if (resp?.success && resp?.newColumnName) {
         setAnnotationCols((prev) => ({
@@ -1156,41 +1261,6 @@ export function ExplorerMode() {
             <Divider />
             <div
               className={
-                showPanel === "params" ? "item-sidebar-intent" : "item-sidebar"
-              }
-            >
-              <Tooltip2
-                className={popclass.TOOLTIP2_INDICATOR}
-                content="Configure analysis parameters"
-                minimal={false}
-                placement={"right"}
-                intent={showPanel === "params" ? "primary" : ""}
-              >
-                <div className="item-button-group">
-                  <Button
-                    outlined={false}
-                    large={false}
-                    minimal={true}
-                    fill={true}
-                    icon={"cog"}
-                    onClick={() => setShowPanel("params")}
-                    intent={showPanel === "params" ? "primary" : "none"}
-                  ></Button>
-                  <span
-                    onClick={() => setShowPanel("params")}
-                    style={{
-                      cursor: "pointer",
-                      color: showPanel === "params" ? "#184A90" : "black",
-                    }}
-                  >
-                    PARAMS
-                  </span>
-                </div>
-              </Tooltip2>
-            </div>
-            <Divider />
-            <div
-              className={
                 showPanel === "logs" ? "item-sidebar-intent" : "item-sidebar"
               }
             >
@@ -1288,6 +1358,82 @@ export function ExplorerMode() {
         <div className="App-body">
           {showPanel === "explore" && (
             <ResizeSensor onResize={handleResize}>
+              {clusterAnnotationCollapsed ? (
+                <div className="explore-single-pane">
+                  <div
+                    className={
+                      showDimPlotLoader
+                        ? "results-dims effect-opacitygrayscale"
+                        : "results-dims"
+                    }
+                  >
+                    {redDimsData && Object.keys(redDimsData).length > 0 && (
+                      <DimPlot
+                        className={"effect-opacitygrayscale"}
+                        redDimsData={redDimsData}
+                        selectedRedDim={selectedRedDim}
+                        setSelectedRedDim={setSelectedRedDim}
+                        showAnimation={showAnimation}
+                        setShowAnimation={setShowAnimation}
+                        animateData={animateData}
+                        setTriggerAnimation={setTriggerAnimation}
+                        selectedClusterSummary={selectedClusterSummary}
+                        setSelectedClusterSummary={setSelectedClusterSummary}
+                        selectedClusterIndex={selectedClusterIndex}
+                        selectedCluster={selectedCluster}
+                        savedPlot={savedPlot}
+                        setSavedPlot={setSavedPlot}
+                        customSelection={customSelection}
+                        setCustomSelection={setCustomSelection}
+                        setGene={setGene}
+                        gene={gene}
+                        setReqGene={setReqGene}
+                        geneExprData={geneExprData}
+                        setDelCustomSelection={setDelCustomSelection}
+                        setReqAnnotation={setReqAnnotation}
+                        selectedPoints={selectedPoints}
+                        setSelectedPoints={setSelectedPoints}
+                        restoreState={restoreState}
+                        setRestoreState={setRestoreState}
+                        setHighlightPoints={setHighlightPoints}
+                        clusHighlight={clusHighlight}
+                        setClusHighlight={setClusHighlight}
+                        clusHighlightLabel={clusHighlightLabel}
+                        setClusHighlightLabel={setClusHighlightLabel}
+                        colorByAnnotation={colorByAnnotation}
+                        setColorByAnnotation={setColorByAnnotation}
+                        selectedModality={selectedModality}
+                        selectedFsetIndex={selectedFsetIndex}
+                        setSelectedFsetIndex={setSelectedFsetIndex}
+                        featureScoreCache={featureScoreCache}
+                        fsetEnirchDetails={fsetEnirchDetails}
+                        selectedDimPlotCluster={selectedDimPlotCluster}
+                        setSelectedDimPlotCluster={setSelectedDimPlotCluster}
+                        onDownloadAllSelections={() => setReqDownloadSelections(true)}
+                      />
+                    )}
+                    {(!redDimsData || Object.keys(redDimsData).length === 0) && (
+                      <Callout intent="warning" icon="warning-sign" style={{ margin: "20px" }}>
+                        <p>
+                          <strong>No reduced dimensions available</strong>
+                        </p>
+                        <p>
+                          This dataset does not contain reduced dimensions (e.g., UMAP, t-SNE, spatial coordinates).
+                          Dot plots and heatmaps are still available, but dimension plots are not.
+                        </p>
+                      </Callout>
+                    )}
+                  </div>
+                  <Tooltip2 content="展开 Cluster Annotation" placement="left">
+                    <Button
+                      minimal
+                      icon="chevron-left"
+                      onClick={() => setClusterAnnotationCollapsed(false)}
+                      className="explore-expand-tab"
+                    />
+                  </Tooltip2>
+                </div>
+              ) : (
               <SplitPane
                 defaultSize={360}
                 split="vertical"
@@ -1343,6 +1489,7 @@ export function ExplorerMode() {
                       fsetEnirchDetails={fsetEnirchDetails}
                       selectedDimPlotCluster={selectedDimPlotCluster}
                       setSelectedDimPlotCluster={setSelectedDimPlotCluster}
+                      onDownloadAllSelections={() => setReqDownloadSelections(true)}
                     />
                   )}
                   {(!redDimsData || Object.keys(redDimsData).length === 0) && (
@@ -1360,8 +1507,10 @@ export function ExplorerMode() {
                 <ClusterAnnotation
                   scranWorker={scranWorker}
                   setReqAnnotation={setReqAnnotation}
+                  onCollapse={() => setClusterAnnotationCollapsed(true)}
                 />
               </SplitPane>
+              )}
             </ResizeSensor>
           )}
           {(showPanel === null || showPanel === undefined) && (
@@ -1412,28 +1561,6 @@ export function ExplorerMode() {
           <div style={{ display: showPanel === "subcluster" ? "block" : "none" }}>
             <Subcluster scranWorker={scranWorker} setReqAnnotation={setReqAnnotation} />
           </div>
-          {showPanel === "params" && (
-            <div style={{ padding: "20px" }}>
-              <Callout intent="primary" icon="info-sign">
-                <H3>Analysis Parameters</H3>
-                <p style={{ marginTop: "10px" }}>
-                  This panel is for configuring analysis parameters when running analysis on datasets without pre-computed results.
-                </p>
-                <p style={{ marginTop: "10px" }}>
-                  <strong>Current workflow:</strong>
-                </p>
-                <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
-                  <li>Go to <strong>LOAD</strong> to select or upload a dataset</li>
-                  <li>If the dataset has no reduced dimensions, click <strong>"Analyze"</strong></li>
-                  <li>The analysis will run with default parameters in your browser</li>
-                  <li>Once complete, use <strong>EXPLORE</strong> to visualize results</li>
-                </ul>
-                <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
-                  Note: Advanced parameter configuration will be available in a future update.
-                </p>
-              </Callout>
-            </div>
-          )}
         </div>
       </SplitPane>
       <Alert

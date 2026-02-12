@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache - AnnoC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        button {
+            background-color: #48AFF0;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #2B95D6;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background-color: #D4EDDA;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background-color: #F8D7DA;
+            color: #721C24;
+            display: block;
+        }
+        .info {
+            background-color: #E8F4F8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 AnnoC Cache Cleaner</h1>
+
+        <div class="info">
+            <strong>遇到 "Can't find variable: Worker" 错误？</strong><br>
+            这通常是浏览器缓存了旧版本的代码。点击下面的按钮清除缓存。
+        </div>
+
+        <button onclick="clearServiceWorkers()">1. 清除 Service Workers</button>
+        <button onclick="clearCache()">2. 清除浏览器缓存</button>
+        <button onclick="clearAll()">3. 全部清除并重新加载</button>
+
+        <div id="status" class="status"></div>
+
+        <div class="info" style="margin-top: 30px;">
+            <strong>手动清除步骤：</strong><br>
+            1. 按 Ctrl+Shift+Delete (Mac: Cmd+Shift+Delete)<br>
+            2. 选择"缓存的图片和文件"<br>
+            3. 时间范围选择"全部时间"<br>
+            4. 点击"清除数据"<br>
+            5. 硬刷新页面: Ctrl+Shift+R (Mac: Cmd+Shift+R)
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, isSuccess) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (isSuccess ? 'success' : 'error');
+        }
+
+        async function clearServiceWorkers() {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                let count = 0;
+                for (let registration of registrations) {
+                    await registration.unregister();
+                    count++;
+                }
+                showStatus(`✓ 成功注销 ${count} 个 Service Worker`, true);
+                setTimeout(() => {
+                    showStatus('正在重新加载页面...', true);
+                    setTimeout(() => location.reload(), 1000);
+                }, 1000);
+            } catch (error) {
+                showStatus('✗ 清除失败: ' + error.message, false);
+            }
+        }
+
+        async function clearCache() {
+            try {
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    showStatus(`✓ 成功清除 ${cacheNames.length} 个缓存`, true);
+                } else {
+                    showStatus('✗ 浏览器不支持 Cache API', false);
+                }
+            } catch (error) {
+                showStatus('✗ 清除失败: ' + error.message, false);
+            }
+        }
+
+        async function clearAll() {
+            try {
+                // Clear service workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                }
+
+                // Clear caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                }
+
+                showStatus('✓ 全部清除成功！正在重新加载...', true);
+
+                // Redirect to main page
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } catch (error) {
+                showStatus('✗ 清除失败: ' + error.message, false);
+            }
+        }
+    </script>
+</body>
+</html>
