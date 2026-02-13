@@ -81,6 +81,9 @@ const DimPlot = (props) => {
   // point size
   const [pointSize, setPointSize] = useState(1);
 
+  // aspect ratio (1 = fixed 1:1, 0 = auto fit container)
+  const [aspectRatio, setAspectRatio] = useState(1);
+
   // variation feature selector states
   const [selectedGeneCol, setSelectedGeneCol] = useState(null);
   const [geneSearchQuery, setGeneSearchQuery] = useState("");
@@ -414,10 +417,13 @@ const DimPlot = (props) => {
         let xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
         let yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
 
-        // Use the same bound for both axes to maintain 1:1 aspect ratio
-        let maxBound = Math.max(xBound, yBound);
-        xBound = maxBound;
-        yBound = maxBound;
+        // Apply aspect ratio: 1 = fixed 1:1, 0 = auto fit container
+        if (aspectRatio === 1) {
+          // Use the same bound for both axes to maintain 1:1 aspect ratio
+          let maxBound = Math.max(xBound, yBound);
+          xBound = maxBound;
+          yBound = maxBound;
+        }
 
         let tspec = {
           defaultData: {
@@ -465,10 +471,13 @@ const DimPlot = (props) => {
           xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
           yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
 
-          // Use the same bound for both axes to maintain 1:1 aspect ratio
-          let maxBound = Math.max(xBound, yBound);
-          xBound = maxBound;
-          yBound = maxBound;
+          // Apply aspect ratio: 1 = fixed 1:1, 0 = auto fit container
+          if (aspectRatio === 1) {
+            // Use the same bound for both axes to maintain 1:1 aspect ratio
+            let maxBound = Math.max(xBound, yBound);
+            xBound = maxBound;
+            yBound = maxBound;
+          }
 
           uspec["tracks"][0].x.domain = [-xBound, xBound];
           uspec["tracks"][0].y.domain = [-yBound, yBound];
@@ -517,6 +526,7 @@ const DimPlot = (props) => {
     }
   }, [
     pointSize,
+    aspectRatio,
     props?.redDimsData,
     props?.animateData,
     props?.selectedRedDim,
@@ -1449,6 +1459,22 @@ const DimPlot = (props) => {
             />
           </Label>
         </Callout>
+
+        <Callout style={{ marginTop: "2px" }}>
+          <Label className="aspect-ratio-label" style={{ fontSize: "x-small" }}>
+            Aspect Ratio:
+            <HTMLSelect
+              small
+              fill
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(Number(e.target.value))}
+            >
+              <option value={1}>Fixed 1:1</option>
+              <option value={0}>Auto Fit</option>
+            </HTMLSelect>
+          </Label>
+        </Callout>
+
         {showGradient &&
           props?.selectedFsetIndex !== null &&
           props?.selectedFsetIndex !== undefined && (
