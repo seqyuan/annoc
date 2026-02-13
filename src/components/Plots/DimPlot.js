@@ -1068,6 +1068,16 @@ const DimPlot = (props) => {
               </Button>
             </Tooltip2>
           )}
+          <Tooltip2 content="Pan and zoom the plot">
+            <Button
+              active={plotMode === "PAN"}
+              intent={plotMode === "PAN" ? "primary" : "none"}
+              icon="hand"
+              onClick={(x) => setInteraction("PAN")}
+            >
+              Pan
+            </Button>
+          </Tooltip2>
           <Tooltip2 content="Make custom selection of cells">
             <Button
               active={plotMode === "SELECT"}
