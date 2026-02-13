@@ -54,10 +54,20 @@ function createDataset(args) {
       return new bakana.H5adResult(args.h5, args.options ? args.options : {});
     }
   } else if (args.format === "SummarizedExperiment") {
-    return new bakana.SummarizedExperimentDataset(
-      args.rds,
-      args.options ? args.options : {}
-    );
+    // For AnalysisMode, use SummarizedExperimentDataset to allow analysis
+    // For ExplorerMode, use SummarizedExperimentResult to load pre-computed results
+    if (args.mode === "analysis") {
+      return new bakana.SummarizedExperimentDataset(
+        args.rds,
+        args.options ? args.options : {}
+      );
+    } else {
+      // Default to SummarizedExperimentResult for explore mode
+      return new bakana.SummarizedExperimentResult(
+        args.rds,
+        args.options ? args.options : {}
+      );
+    }
   } else if (args.format === "Seurat") {
     return new SeuratDataset(
       args.rds,
