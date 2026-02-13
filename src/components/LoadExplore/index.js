@@ -9,6 +9,7 @@ import { generateUID } from "../../utils/utils";
 import { Tooltip2 } from "@blueprintjs/popover2";
 import { H5ADCard } from "./H5ADCard";
 import { SECard } from "./SECard";
+import { SeuratCard } from "./SeuratCard";
 
 export function LoadExplore({ setShowPanel, ...props }) {
   const {
@@ -70,6 +71,8 @@ export function LoadExplore({ setShowPanel, ...props }) {
       if (x.format === "H5AD") {
         if (!x.h5) all_valid = false;
       } else if (x.format === "SummarizedExperiment") {
+        if (!x.rds) all_valid = false;
+      } else if (x.format === "Seurat") {
         if (!x.rds) all_valid = false;
       }
 
@@ -134,11 +137,60 @@ export function LoadExplore({ setShowPanel, ...props }) {
             <div className="row">
               <Callout intent="primary">
                 <p>Load an RDS (*.rds) file containing a SummarizedExperiment or SingleCellExperiment.</p>
+                <p style={{ marginTop: "10px", fontSize: "0.9em" }}>
+                  <strong>If you have a Seurat object, convert it first in R:</strong>
+                </p>
+                <pre style={{
+                  background: "#f5f8fa",
+                  padding: "10px",
+                  borderRadius: "3px",
+                  fontSize: "0.85em",
+                  marginTop: "5px",
+                  overflow: "auto"
+                }}>
+{`library(Seurat)
+library(SingleCellExperiment)
+
+rds <- readRDS("seurat.rds")
+sce <- as.SingleCellExperiment(rds)
+saveRDS(sce, "sce.rds")`}
+                </pre>
               </Callout>
             </div>
             <div className="row">
               <Label className="row-input">
                 <Text className="text-100"><span>Choose an RDS file</span></Text>
+                <FileInput style={{ marginTop: "5px" }}
+                  text={tmpLoadInputs?.rds ? tmpLoadInputs?.rds.name : ".rds"}
+                  onInputChange={(msg) => {
+                    if (msg.target.files) {
+                      setTmpLoadInputs({ ...tmpLoadInputs, rds: msg.target.files[0] });
+                    }
+                  }}
+                />
+              </Label>
+            </div>
+          </div>
+        } />
+        <Tab id="Seurat" title="Seurat RDS" panel={
+          <div>
+            <div className="row">
+              <Callout intent="primary">
+                <p>Load an RDS (*.rds) file containing a Seurat v4 object.</p>
+                <p style={{ marginTop: "10px", fontSize: "0.9em" }}>
+                  This reader will automatically extract:
+                </p>
+                <ul style={{ fontSize: "0.9em", marginTop: "5px" }}>
+                  <li>Expression matrices (counts, normalized data)</li>
+                  <li>Dimensionality reductions (PCA, UMAP, t-SNE)</li>
+                  <li>Cell metadata (clusters, QC metrics, etc.)</li>
+                  <li>Multiple assays (RNA, ADT, CRISPR if present)</li>
+                </ul>
+              </Callout>
+            </div>
+            <div className="row">
+              <Label className="row-input">
+                <Text className="text-100"><span>Choose a Seurat RDS file</span></Text>
                 <FileInput style={{ marginTop: "5px" }}
                   text={tmpLoadInputs?.rds ? tmpLoadInputs?.rds.name : ".rds"}
                   onInputChange={(msg) => {

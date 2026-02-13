@@ -5,6 +5,7 @@ import * as gesel from "gesel";
 import * as hashwasm from "hash-wasm";
 import * as downloads from "./DownloadsDBHandler.js";
 import JSZip from "jszip";
+import { SeuratDataset } from "../readers/seurat.js";
 
 import * as translate from "./translate.js";
 import {
@@ -54,6 +55,11 @@ function createDataset(args) {
     }
   } else if (args.format === "SummarizedExperiment") {
     return new bakana.SummarizedExperimentDataset(
+      args.rds,
+      args.options ? args.options : {}
+    );
+  } else if (args.format === "Seurat") {
+    return new SeuratDataset(
       args.rds,
       args.options ? args.options : {}
     );
@@ -158,6 +164,12 @@ function summarizeDataset(summary, args) {
     args.format === "ZippedADB"
   ) {
     tmp_meta["modality_assay_names"] = summary.modality_assay_names;
+  } else if (args.format === "Seurat") {
+    // Seurat format returns simplified summary
+    tmp_meta["assays"] = summary.assays || [];
+    tmp_meta["reductions"] = summary.reductions || [];
+    tmp_meta["reduced_dimension_names"] = summary.reductions || [];
+    tmp_meta["metadata_columns"] = summary.metadata_columns || [];
   }
   return tmp_meta;
 }

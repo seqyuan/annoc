@@ -729,6 +729,24 @@ export function NewAnalysis({ setShowPanel, setStateIndeterminate, ...props }) {
                     modalities can be extracted from the alternative
                     experiments.
                   </p>
+                  <p style={{ marginTop: "10px", fontSize: "0.9em" }}>
+                    <strong>If you have a Seurat object, convert it first in R:</strong>
+                  </p>
+                  <pre style={{
+                    background: "#f5f8fa",
+                    padding: "10px",
+                    borderRadius: "3px",
+                    fontSize: "0.85em",
+                    marginTop: "5px",
+                    overflow: "auto"
+                  }}>
+{`library(Seurat)
+library(SingleCellExperiment)
+
+rds <- readRDS("seurat.rds")
+sce <- as.SingleCellExperiment(rds)
+saveRDS(sce, "sce.rds")`}
+                  </pre>
                 </Callout>
               </div>
               <div className="row">
