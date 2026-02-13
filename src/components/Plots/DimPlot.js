@@ -19,7 +19,7 @@ import { Tooltip2 } from "@blueprintjs/popover2";
 import { Suggest } from "@blueprintjs/select";
 
 import { AppContext } from "../../context/AppContext";
-import { getFactorsFromArray, getGradient, getMinMax } from "./utils";
+import { getFactorsFromArray, getMinMax } from "./utils";
 
 import Rainbow from "./rainbowvis";
 import { randomColor } from "randomcolor";
@@ -202,7 +202,9 @@ const DimPlot = (props) => {
   // hook to also react when user changes the slider for annotations
   useEffect(() => {
     if (Array.isArray(sliderFactorsMinMax)) {
-      let tmpgradient = getGradient(
+      let tmpgradient = new Rainbow();
+      tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+      tmpgradient.setNumberRange(
         sliderFactorsMinMax[0],
         sliderFactorsMinMax[1] + 0.00001
       );
@@ -412,11 +414,10 @@ const DimPlot = (props) => {
         let xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
         let yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
 
-        if (aspRatio > 1) {
-          xBound = xBound * aspRatio;
-        } else {
-          yBound = yBound / aspRatio;
-        }
+        // Use the same bound for both axes to maintain 1:1 aspect ratio
+        let maxBound = Math.max(xBound, yBound);
+        xBound = maxBound;
+        yBound = maxBound;
 
         let tspec = {
           defaultData: {
@@ -464,11 +465,10 @@ const DimPlot = (props) => {
           xBound = Math.max(...xDomain.map((a) => Math.abs(a)));
           yBound = Math.max(...yDomain.map((a) => Math.abs(a)));
 
-          if (aspRatio > 1) {
-            xBound = xBound * aspRatio;
-          } else {
-            yBound = yBound / aspRatio;
-          }
+          // Use the same bound for both axes to maintain 1:1 aspect ratio
+          let maxBound = Math.max(xBound, yBound);
+          xBound = maxBound;
+          yBound = maxBound;
 
           uspec["tracks"][0].x.domain = [-xBound, xBound];
           uspec["tracks"][0].y.domain = [-yBound, yBound];
@@ -564,7 +564,10 @@ const DimPlot = (props) => {
               const [minTmp, maxTmp] = getMinMax(tmp.values);
               setFactorsMinMax([minTmp, maxTmp]);
 
-              let tmpgradient = getGradient(minTmp, maxTmp);
+              let tmpgradient = new Rainbow();
+              tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+              // Add small offset to ensure max > min for proper gradient calculation
+              tmpgradient.setNumberRange(minTmp, maxTmp + 0.00001);
               setFactorGradient(tmpgradient);
             }
 
@@ -610,19 +613,20 @@ const DimPlot = (props) => {
           const [minTmp, maxTmp] = getMinMax(tmp.values);
           setFactorsMinMax([minTmp, maxTmp]);
 
-          let tmpgradient = getGradient(minTmp, maxTmp);
+          let tmpgradient = new Rainbow();
+          tmpgradient.setSpectrum("#F5F8FA", "#2965CC");
+          // Add small offset to ensure max > min for proper gradient calculation
+          tmpgradient.setNumberRange(minTmp, maxTmp + 0.00001);
           setFactorGradient(tmpgradient);
 
           setShowToggleFactors(false);
           setToggleFactorsGradient(false);
 
-          let { levels, indices } = getFactorsFromArray(tmp.values);
-
-          cluster_colors = generateColors(levels.length + 1);
-
-          setPlotGroups(levels);
-          setPlotFactors(indices);
-          setPlotColorMappings(cluster_colors);
+          // For continuous annotations, store raw numeric values instead of categorical indices
+          // This allows the gradient to correctly map actual values to colors
+          setPlotFactors(tmp.values);
+          setPlotGroups([]);
+          setPlotColorMappings([]);
         }
       }
     }
@@ -1258,7 +1262,7 @@ const DimPlot = (props) => {
                         min={factorsMinMax[0]}
                         max={factorsMinMax[1]}
                         stepSize={Math.max(
-                          Math.round(factorsMinMax[1] - factorsMinMax[0]) / 50,
+                          (factorsMinMax[1] - factorsMinMax[0]) / 50,
                           0.0001
                         )}
                         labelValues={factorsMinMax}

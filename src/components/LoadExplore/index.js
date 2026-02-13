@@ -171,6 +171,18 @@ export function LoadExplore({ setShowPanel, ...props }) {
       <Divider />
       <div className="section-content">
         <div className="section-content-body">
+          {/* Privacy Notice */}
+          {!(preInputFilesStatus && tmpLoadInputs.name in preInputFilesStatus) && (
+            <Callout intent="primary" icon="lock" style={{ marginBottom: "15px" }}>
+              <p style={{ marginTop: "0px", marginBottom: "0px" }}>
+                <strong>🔒 Privacy Protected</strong>
+              </p>
+              <p style={{ marginTop: "8px", marginBottom: "0px", fontSize: "14px" }}>
+                Your data is loaded directly into your browser's memory and processed entirely on your computer.
+                Nothing is uploaded to any server or cloud service. Your data privacy is fully guaranteed.
+              </p>
+            </Callout>
+          )}
           {preInputFilesStatus && tmpLoadInputs.name in preInputFilesStatus && (
             <Callout>
               <p style={{ marginTop: "8px" }}>

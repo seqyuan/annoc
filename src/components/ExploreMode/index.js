@@ -1045,6 +1045,9 @@ export function ExplorerMode() {
   // set cellann width
   const [cellAnnWidth, setCellAnnWidth] = useState(360);
 
+  // cluster annotation panel width
+  const [clusterAnnWidth, setClusterAnnWidth] = useState(360);
+
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
   };
@@ -1435,10 +1438,23 @@ export function ExplorerMode() {
                 </div>
               ) : (
               <SplitPane
-                defaultSize={360}
                 split="vertical"
                 primary="second"
-                allowResize={false}
+                size={clusterAnnWidth}
+                minSize={280}
+                maxSize={-100}
+                onChange={(size) => {
+                  console.log('ClusterAnnotation panel resized to:', size);
+                  setClusterAnnWidth(size);
+                }}
+                onDragStarted={() => console.log('Drag started')}
+                onDragFinished={(size) => console.log('Drag finished, final size:', size)}
+                resizerStyle={{
+                  width: '10px',
+                  margin: '0',
+                  cursor: 'col-resize',
+                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                }}
               >
                 <div
                   className={
