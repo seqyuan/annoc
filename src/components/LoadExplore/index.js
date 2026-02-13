@@ -132,7 +132,7 @@ export function LoadExplore({ setShowPanel, ...props }) {
             </div>
           </div>
         } />
-        <Tab id="SummarizedExperiment" title="RDS" panel={
+        <Tab id="SummarizedExperiment" title="SCE" panel={
           <div>
             <div className="row">
               <Callout intent="primary">
@@ -172,7 +172,7 @@ saveRDS(sce, "sce.rds")`}
             </div>
           </div>
         } />
-        <Tab id="Seurat" title="Seurat RDS" panel={
+        <Tab id="Seurat" title="Seurat" panel={
           <div>
             <div className="row">
               <Callout intent="primary">
