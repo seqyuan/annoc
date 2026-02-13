@@ -1,0 +1,15 @@
+diff --git a/node_modules/bakana/browser/readers/se.js b/node_modules/bakana/browser/readers/se.js
+index 0fa0a55..f7f6f2a 100644
+--- a/node_modules/bakana/browser/readers/se.js
++++ b/node_modules/bakana/browser/readers/se.js
+@@ -457,7 +457,9 @@ function extract_reduced_dims(handle) {
+                 curhandle = rdld_handle.load(i);
+                 let okay = false;
+ 
+-                if (curhandle.type() == "double" && curhandle.findAttribute("dim") >= 0) { // only accepting double-precision matrics.
++                // Accept both double and integer types for reduced dimensions
++                let curtype = curhandle.type();
++                if ((curtype == "double" || curtype == "integer") && curhandle.findAttribute("dim") >= 0) {
+                     let dimhandle = curhandle.attribute("dim");
+                     if (dimhandle.length() == 2) {
+                         output.handles[rd_names[i]] = { handle: curhandle, dimensions: dimhandle.values() };
