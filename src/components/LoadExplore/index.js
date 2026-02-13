@@ -48,6 +48,7 @@ export function LoadExplore({ setShowPanel, ...props }) {
 
     if (hasReducedDims) {
       // Has reduced dimensions - load into ExplorerMode for visualization only
+      mapFiles[tmpLoadInputs.name].mode = "explore";
       setExploreFiles(fInputFiles);
       setShowPanel("explore");
     } else {
