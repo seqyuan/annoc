@@ -73,6 +73,14 @@ const AppContextProvider = ({ children }) => {
   const [clusterAnnotations, setClusterAnnotations] = useState({});
   const [globalClusterOrder, setGlobalClusterOrder] = useState({});
 
+  // annotation editing state (shared between ExploreMode and DotPlot)
+  const [annotationEditState, setAnnotationEditState] = useState({
+    selectedMetadata: null,
+    annotationColumnName: "celltype1",
+    clusterList: [],
+    currentAnnotations: {}
+  });
+
   // default params
   const [params, setParams] = useState({
     feature_selection: {
@@ -241,6 +249,8 @@ const AppContextProvider = ({ children }) => {
         setClusterAnnotations,
         globalClusterOrder,
         setGlobalClusterOrder,
+        annotationEditState,
+        setAnnotationEditState,
         datasetName,
         setDatasetName,
         loadFiles,
