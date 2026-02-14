@@ -15,6 +15,7 @@ import { MultiSelect } from "@blueprintjs/select";
 import { Popover2, Tooltip2 } from "@blueprintjs/popover2";
 import * as d3 from "d3";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
 
 import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
@@ -414,6 +415,57 @@ const DotPlot = (props) => {
     // The useEffect will handle updating gene groups and input
   };
 
+  const handleSavePDF = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.error("Canvas not found");
+      return;
+    }
+
+    // Convert canvas to image data
+    const imgData = canvas.toDataURL("image/png");
+
+    // Calculate PDF dimensions based on canvas size
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    // Create PDF in landscape or portrait based on aspect ratio
+    const aspectRatio = canvasWidth / canvasHeight;
+    let pdf;
+    let pdfWidth, pdfHeight;
+
+    if (aspectRatio > 1.4) {
+      // Wide plot - use landscape
+      pdf = new jsPDF('landscape', 'pt', 'a4');
+      pdfWidth = pdf.internal.pageSize.getWidth();
+      pdfHeight = pdf.internal.pageSize.getHeight();
+    } else {
+      // Tall or square plot - use portrait
+      pdf = new jsPDF('portrait', 'pt', 'a4');
+      pdfWidth = pdf.internal.pageSize.getWidth();
+      pdfHeight = pdf.internal.pageSize.getHeight();
+    }
+
+    // Scale image to fit PDF page while maintaining aspect ratio
+    const scale = Math.min(pdfWidth / canvasWidth, pdfHeight / canvasHeight);
+    const scaledWidth = canvasWidth * scale;
+    const scaledHeight = canvasHeight * scale;
+
+    // Center the image on the page
+    const x = (pdfWidth - scaledWidth) / 2;
+    const y = (pdfHeight - scaledHeight) / 2;
+
+    // Add image to PDF
+    pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `dotplot_${timestamp}.pdf`;
+
+    // Save PDF
+    pdf.save(filename);
+  };
+
   const handleGeneratePlot = () => {
     let genes;
     let flatWithCategory = null;
@@ -539,7 +591,13 @@ const DotPlot = (props) => {
 
     // Canvas dimensions
     const margin = { top: 100, right: 200, bottom: 100, left: 150 };
-    const cellWidth = 35;
+
+    // Adaptive cellWidth based on container width
+    const containerWidth = containerRef.current?.clientWidth || 1200;
+    const maxWidth = containerWidth - margin.left - margin.right - 20; // 20px padding
+    const idealCellWidth = Math.floor(maxWidth / geneNames.length);
+    const cellWidth = Math.min(35, Math.max(20, idealCellWidth)); // Between 20-35px
+
     const cellHeight = 25;
     const width = geneNames.length * cellWidth + margin.left + margin.right;
     const height = orderedClusters.length * cellHeight + margin.top + margin.bottom;
@@ -927,6 +985,14 @@ B cells,MS4A1`}
               }}
               disabled={loading}
               style={{ marginLeft: "10px" }}
+            />
+            <Button
+              text="SaveFig"
+              onClick={handleSavePDF}
+              disabled={!dotplotData}
+              icon="download"
+              style={{ marginLeft: "10px" }}
+              title="Save plot as PDF"
             />
           </div>
 
