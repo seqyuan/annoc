@@ -372,14 +372,17 @@ const ClusterAnnotation = (props) => {
     }));
   };
 
+  // Destructure props
+  const { onCollapse, onlyAnnotation = false } = props;
+
   // Tab state (only needed when not in annotation-only mode)
   const [activeTab, setActiveTab] = useState(onlyAnnotation ? null : "annotation");
 
   // Stat tab states (only needed when not in annotation-only mode)
-  const [statGroup, setStatGroup] = useState(onlyAnnotation ? null : null);
-  const [statCelltype, setStatCelltype] = useState(onlyAnnotation ? null : null);
-  const [chartOrientation, setChartOrientation] = useState(onlyAnnotation ? null : "vertical"); // "horizontal" or "vertical"
-  const [barWidthRatio, setBarWidthRatio] = useState(onlyAnnotation ? null : 0.27); // Bar width ratio (0-1)
+  const [statGroup, setStatGroup] = useState(null);
+  const [statCelltype, setStatCelltype] = useState(null);
+  const [chartOrientation, setChartOrientation] = useState("vertical"); // "horizontal" or "vertical"
+  const [barWidthRatio, setBarWidthRatio] = useState(0.27); // Bar width ratio (0-1)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -647,8 +650,6 @@ const ClusterAnnotation = (props) => {
   };
 
   const nonNumericCols = getNonNumericColumns();
-
-  const { onCollapse, onlyAnnotation = false } = props;
 
   // Calculate stacked bar chart data
   const calculateStatData = () => {
