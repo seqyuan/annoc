@@ -337,12 +337,40 @@ const ClusterAnnotation = (props) => {
     setClusterAnnotations,
     globalClusterOrder,
     setGlobalClusterOrder,
+    annotationEditState,
+    setAnnotationEditState,
   } = useContext(AppContext);
 
-  const [selectedMetadata, setSelectedMetadata] = useState(null);
-  const [annotationColumnName, setAnnotationColumnName] = useState("celltype1");
-  const [clusterList, setClusterList] = useState([]);
-  const [currentAnnotations, setCurrentAnnotations] = useState({});
+  // Destructure annotation state from AppContext
+  const {
+    selectedMetadata,
+    annotationColumnName,
+    clusterList,
+    currentAnnotations
+  } = annotationEditState;
+
+  // Helper setters to update specific fields in annotationEditState
+  const setSelectedMetadata = (value) => {
+    setAnnotationEditState(prev => ({ ...prev, selectedMetadata: value }));
+  };
+
+  const setAnnotationColumnName = (value) => {
+    setAnnotationEditState(prev => ({ ...prev, annotationColumnName: value }));
+  };
+
+  const setClusterList = (value) => {
+    setAnnotationEditState(prev => ({
+      ...prev,
+      clusterList: typeof value === 'function' ? value(prev.clusterList) : value
+    }));
+  };
+
+  const setCurrentAnnotations = (value) => {
+    setAnnotationEditState(prev => ({
+      ...prev,
+      currentAnnotations: typeof value === 'function' ? value(prev.currentAnnotations) : value
+    }));
+  };
 
   // Tab state
   const [activeTab, setActiveTab] = useState("annotation");
