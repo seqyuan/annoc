@@ -795,6 +795,82 @@ const ClusterAnnotation = (props) => {
 
   const statData = calculateStatData();
 
+  // Annotation panel content (extracted for reuse in both modes)
+  const annotationPanel = (
+    <>
+      <div className="cluster-annotation-fields">
+        <Label className="cluster-field-origin">
+          origin:
+          <HTMLSelect
+            value={selectedMetadata || ""}
+            onChange={(e) => setSelectedMetadata(e.target.value)}
+            fill
+          >
+            {nonNumericCols.map((col) => (
+              <option key={col} value={col}>
+                {col}
+              </option>
+            ))}
+          </HTMLSelect>
+        </Label>
+        <Label className="cluster-field-newname">
+          new name:
+          <InputGroup
+            value={annotationColumnName}
+            onChange={(e) => setAnnotationColumnName(e.target.value)}
+            placeholder="e.g., celltype1"
+          />
+        </Label>
+      </div>
+
+      <Divider />
+
+      {clusterList.length > 0 ? (
+        <>
+          <div className="cluster-list">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={clusterList.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {clusterList.map((item) => (
+                  <SortableClusterRow
+                    key={item.id}
+                    id={item.id}
+                    cluster={item.cluster}
+                    annotation={item.annotation}
+                    onAnnotationChange={handleAnnotationChange}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
+
+          <div className="cluster-annotation-actions">
+            <Button
+              intent="primary"
+              text="Anno"
+              onClick={handleSave}
+            />
+            <Button
+              text="Export"
+              onClick={handleExport}
+              style={{ marginLeft: "10px" }}
+            />
+          </div>
+        </>
+      ) : (
+        <Callout intent="primary" icon="info-sign">
+          Select a metadata column to begin annotation.
+        </Callout>
+      )}
+    </>
+  );
+
   return (
     <div className="cluster-annotation-container">
       {onCollapse && (
@@ -825,80 +901,7 @@ const ClusterAnnotation = (props) => {
           <Tab
             id="annotation"
             title="Annotation"
-            panel={
-              <>
-                <div className="cluster-annotation-fields">
-                  <Label className="cluster-field-origin">
-                    origin:
-                    <HTMLSelect
-                      value={selectedMetadata || ""}
-                      onChange={(e) => setSelectedMetadata(e.target.value)}
-                      fill
-                    >
-                      {nonNumericCols.map((col) => (
-                        <option key={col} value={col}>
-                          {col}
-                        </option>
-                      ))}
-                    </HTMLSelect>
-                  </Label>
-                  <Label className="cluster-field-newname">
-                    new name:
-                    <InputGroup
-                      value={annotationColumnName}
-                      onChange={(e) => setAnnotationColumnName(e.target.value)}
-                      placeholder="e.g., celltype1"
-                    />
-                  </Label>
-                </div>
-
-                <Divider />
-
-                {clusterList.length > 0 ? (
-                  <>
-                    <div className="cluster-list">
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={clusterList.map((item) => item.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {clusterList.map((item) => (
-                            <SortableClusterRow
-                              key={item.id}
-                              id={item.id}
-                              cluster={item.cluster}
-                              annotation={item.annotation}
-                              onAnnotationChange={handleAnnotationChange}
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-
-                    <div className="cluster-annotation-actions">
-                      <Button
-                        intent="primary"
-                        text="Anno"
-                        onClick={handleSave}
-                      />
-                      <Button
-                        text="Export"
-                        onClick={handleExport}
-                        style={{ marginLeft: "10px" }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <Callout intent="primary" icon="info-sign">
-                    Select a metadata column to begin annotation.
-                  </Callout>
-                )}
-              </>
-            }
+            panel={annotationPanel}
           />
           <Tab
             id="stat"
