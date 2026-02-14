@@ -372,14 +372,14 @@ const ClusterAnnotation = (props) => {
     }));
   };
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState("annotation");
+  // Tab state (only needed when not in annotation-only mode)
+  const [activeTab, setActiveTab] = useState(onlyAnnotation ? null : "annotation");
 
-  // Stat tab states
-  const [statGroup, setStatGroup] = useState(null);
-  const [statCelltype, setStatCelltype] = useState(null);
-  const [chartOrientation, setChartOrientation] = useState("vertical"); // "horizontal" or "vertical"
-  const [barWidthRatio, setBarWidthRatio] = useState(0.27); // Bar width ratio (0-1)
+  // Stat tab states (only needed when not in annotation-only mode)
+  const [statGroup, setStatGroup] = useState(onlyAnnotation ? null : null);
+  const [statCelltype, setStatCelltype] = useState(onlyAnnotation ? null : null);
+  const [chartOrientation, setChartOrientation] = useState(onlyAnnotation ? null : "vertical"); // "horizontal" or "vertical"
+  const [barWidthRatio, setBarWidthRatio] = useState(onlyAnnotation ? null : 0.27); // Bar width ratio (0-1)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -422,6 +422,8 @@ const ClusterAnnotation = (props) => {
 
   // Initialize stat tab selections
   useEffect(() => {
+    if (onlyAnnotation) return; // Skip stat initialization in annotation-only mode
+
     const nonNumericCols = getNonNumericColumns();
     if (nonNumericCols.length > 0) {
       // Initialize statGroup if not set
@@ -476,7 +478,7 @@ const ClusterAnnotation = (props) => {
         setStatCelltype(celltypeCol);
       }
     }
-  }, [annotationCols, statGroup, statCelltype]);
+  }, [annotationCols, statGroup, statCelltype, onlyAnnotation]);
 
   // Load cluster list when metadata changes
   useEffect(() => {
@@ -515,13 +517,15 @@ const ClusterAnnotation = (props) => {
 
   // Request stat data when group or celltype changes
   useEffect(() => {
+    if (onlyAnnotation) return; // Skip stat data requests in annotation-only mode
+
     if (statGroup && !annotationObj[statGroup]) {
       props.setReqAnnotation?.(statGroup);
     }
     if (statCelltype && !annotationObj[statCelltype]) {
       props.setReqAnnotation?.(statCelltype);
     }
-  }, [statGroup, statCelltype, annotationObj]);
+  }, [statGroup, statCelltype, annotationObj, onlyAnnotation]);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -644,7 +648,7 @@ const ClusterAnnotation = (props) => {
 
   const nonNumericCols = getNonNumericColumns();
 
-  const { onCollapse } = props;
+  const { onCollapse, onlyAnnotation = false } = props;
 
   // Calculate stacked bar chart data
   const calculateStatData = () => {
@@ -871,6 +875,36 @@ const ClusterAnnotation = (props) => {
     </>
   );
 
+  // Annotation-only mode: render content directly without Tabs
+  if (onlyAnnotation) {
+    return (
+      <div className="cluster-annotation-container">
+        {onCollapse && (
+          <div style={{ position: 'absolute', top: '5px', right: '5px', zIndex: 10 }}>
+            <Tooltip2 content="收起（左侧铺满）" placement="left">
+              <Button
+                minimal
+                small
+                icon="chevron-left"
+                onClick={onCollapse}
+                className="cluster-annotation-toggle"
+              />
+            </Tooltip2>
+          </div>
+        )}
+
+        {nonNumericCols.length === 0 ? (
+          <Callout intent="warning" icon="warning-sign">
+            No non-numeric metadata columns available for annotation.
+          </Callout>
+        ) : (
+          annotationPanel
+        )}
+      </div>
+    );
+  }
+
+  // Default mode: full Tabs interface
   return (
     <div className="cluster-annotation-container">
       {onCollapse && (
