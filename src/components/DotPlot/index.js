@@ -11,12 +11,14 @@ import {
   Icon,
 } from "@blueprintjs/core";
 import { Select2 } from "@blueprintjs/select";
+import { MultiSelect } from "@blueprintjs/select";
 import { Popover2, Tooltip2 } from "@blueprintjs/popover2";
 import * as d3 from "d3";
 import * as XLSX from "xlsx";
 
 import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
+import ClusterAnnotation from "../ClusterAnnotation";
 import "./dotplot.css";
 
 // Expected upload format: col0 = category (e.g. "T cells"), col1 = gene. Supports CSV, TXT, XLSX.
@@ -89,6 +91,47 @@ const COLORMAP_INTERPOLATORS = {
 
 const COLORMAP_NAMES = Object.keys(COLORMAP_INTERPOLATORS);
 
+// Classic marker gene list organized by cell types
+const CLASSIC_MARKERS = {
+  "Epithelial Cells": {
+    "Squamous Epithelium": ["KRT5", "KRT14", "KRT15", "TP63", "ITGA6", "COL17A1"],
+    "Columnar Epithelium": ["KRT8", "KRT18", "KRT19", "EPCAM", "CDH1", "MUC1"],
+    "Basal Cells": ["KRT5", "KRT14", "TP63", "ITGA6", "NGFR", "DLK2"],
+    "Goblet Cells": ["MUC2", "MUC5AC", "TFF3", "SPDEF", "AGR2"],
+    "Club Cells": ["SCGB1A1", "SCGB3A2", "CYP2F2", "LYPD2"],
+  },
+  "Immune Cells": {
+    "T Cells": ["CD3D", "CD3E", "CD3G", "IL7R", "CD2", "CD28"],
+    "CD4+ T Cells": ["CD4", "IL7R", "TCF7", "MAL", "LDHB"],
+    "CD8+ T Cells": ["CD8A", "CD8B", "GZMK", "CCL5", "NKG7"],
+    "Regulatory T Cells": ["FOXP3", "IL2RA", "CTLA4", "IKZF2", "TIGIT"],
+    "B Cells": ["CD19", "MS4A1", "CD79A", "CD79B", "IGHM", "IGHD"],
+    "Plasma Cells": ["JCHAIN", "MZB1", "IGHG1", "IGHG3", "SDC1"],
+    "NK Cells": ["NKG7", "GNLY", "KLRD1", "KLRF1", "NCAM1", "GZMB"],
+    "Monocytes": ["CD14", "FCGR3A", "LYZ", "S100A8", "S100A9", "VCAN"],
+    "Macrophages": ["CD68", "CD163", "MSR1", "MRC1", "MARCO", "C1QA"],
+    "Dendritic Cells": ["CD1C", "CLEC9A", "FCER1A", "CLEC10A", "IRF8"],
+    "Mast Cells": ["TPSAB1", "CPA3", "KIT", "MS4A2", "HDC"],
+  },
+  "Stromal Cells": {
+    "Fibroblasts": ["COL1A1", "COL1A2", "DCN", "LUM", "VIM", "PDGFRA"],
+    "Myofibroblasts": ["ACTA2", "TAGLN", "MYH11", "MYLK", "TPM2"],
+    "Endothelial Cells": ["PECAM1", "VWF", "CDH5", "PLVAP", "ENG", "CD34"],
+    "Lymphatic Endothelial": ["PROX1", "LYVE1", "PDPN", "FLT4", "CCL21"],
+    "Pericytes": ["RGS5", "PDGFRB", "NOTCH3", "ACTA2", "MCAM"],
+    "Smooth Muscle Cells": ["ACTA2", "MYH11", "TAGLN", "CNN1", "MYLK"],
+  },
+  "Neural Cells": {
+    "Neurons": ["RBFOX3", "MAP2", "SYP", "SNAP25", "TUBB3"],
+    "Astrocytes": ["GFAP", "AQP4", "SLC1A3", "SLC1A2", "ALDH1L1"],
+    "Oligodendrocytes": ["MOG", "MBP", "PLP1", "MOBP", "OLIG2"],
+    "Schwann Cells": ["MPZ", "PMP22", "S100B", "SOX10", "NGFR"],
+  },
+  "Cell Cycle": {
+    "Cycling Cells": ["MKI67", "TOP2A", "PCNA", "CDKN3", "UBE2C", "HMGB2"],
+  },
+};
+
 function colormapBarStyle(name) {
   const interp = COLORMAP_INTERPOLATORS[name] || d3.interpolateBlues;
   return {
@@ -112,9 +155,19 @@ const DotPlot = (props) => {
   const [colormap, setColormap] = useState("Blues");
   const [geneGroups, setGeneGroups] = useState([]);
   const [groupRanges, setGroupRanges] = useState([]);
+  const [selectedClassicMarkers, setSelectedClassicMarkers] = useState([]);
+  const [markerSpecies, setMarkerSpecies] = useState("human");
+
+  // Floating annotation panel state
+  const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
+  const [panelPosition, setPanelPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [reqAnnotation, setReqAnnotation] = useState(null);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const floatingPanelRef = useRef(null);
 
   // Initialize selected annotation
   useEffect(() => {
@@ -133,7 +186,24 @@ const DotPlot = (props) => {
     }
   }, [annotationCols, selectedAnnotation]);
 
-  // Gene names: prefer rowNames (like DimPlot), else first array column
+  // When species changes or selections change, rebuild gene groups
+  useEffect(() => {
+    if (selectedClassicMarkers.length > 0) {
+      const groups = buildGeneGroupsFromSelections(selectedClassicMarkers, markerSpecies);
+      setGeneGroups(groups);
+
+      // Update gene input to show selected genes with categories
+      const inputLines = groups.flatMap((g) =>
+        g.genes.map((gene) => `${g.category}\t${gene}`)
+      );
+      setGeneInput(inputLines.join("\n"));
+    } else {
+      // Clear gene groups and input when no classic markers selected
+      setGeneGroups([]);
+      setGeneInput("");
+    }
+  }, [markerSpecies, selectedClassicMarkers]);
+
   const getGeneNames = () => {
     if (!genesInfo || typeof genesInfo !== "object") return null;
     if (Array.isArray(genesInfo.rowNames)) return genesInfo.rowNames;
@@ -145,16 +215,133 @@ const DotPlot = (props) => {
     return null;
   };
 
+  // Helper function to convert gene name based on species
+  const convertGeneName = (gene, species) => {
+    if (species === "mouse") {
+      // Mouse: first letter uppercase, rest lowercase (e.g., CD3D -> Cd3d)
+      return gene.charAt(0).toUpperCase() + gene.slice(1).toLowerCase();
+    }
+    // Human: keep original (all uppercase for most markers)
+    return gene;
+  };
+
+  // Helper function to simplify cell type names for display
+  const simplifyCellTypeName = (name) => {
+    const simplifications = {
+      "Squamous Epithelium": "Squamous Epi",
+      "Columnar Epithelium": "Columnar Epi",
+      "Basal Cells": "Basal",
+      "Goblet Cells": "Goblet",
+      "Club Cells": "Club",
+      "T Cells": "T",
+      "CD4+ T Cells": "CD4+ T",
+      "CD8+ T Cells": "CD8+ T",
+      "Regulatory T Cells": "Treg",
+      "B Cells": "B",
+      "Plasma Cells": "Plasma",
+      "NK Cells": "NK",
+      "Dendritic Cells": "DC",
+      "Mast Cells": "Mast",
+      "Lymphatic Endothelial": "Lymphatic Endo",
+      "Endothelial Cells": "Endothelial",
+      "Smooth Muscle Cells": "Smooth Muscle",
+      "Cycling Cells": "Cycling",
+    };
+    return simplifications[name] || name;
+  };
+
+  // Helper function to build gene groups from selections
+  const buildGeneGroupsFromSelections = (selections, species) => {
+    const groups = [];
+    selections.forEach((sel) => {
+      const [majorCategory, subCategory] = sel.split(" > ");
+      const genes = CLASSIC_MARKERS[majorCategory]?.[subCategory];
+      if (genes && genes.length > 0) {
+        const convertedGenes = genes.map((gene) => convertGeneName(gene, species));
+        groups.push({
+          category: simplifyCellTypeName(subCategory),
+          genes: convertedGenes,
+        });
+      }
+    });
+    return groups;
+  };
+
   const parseGeneInput = (input) => {
-    if (!input.trim()) return [];
+    if (!input.trim()) return { genes: [], groups: [] };
 
-    // Split by newlines or commas
-    const genes = input
-      .split(/[\n,]+/)
-      .map((g) => g.trim())
-      .filter((g) => g.length > 0);
+    const lines = input.split(/\r?\n/).filter((line) => line.trim());
+    const genes = [];
+    const detectedGroups = [];
+    let hasTwoColumn = false;
 
-    return genes;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // Try to detect two-column format: category + gene
+      // Priority: Tab > Comma > Space (from right to support "T cell Cd3d")
+      let category = null;
+      let gene = null;
+
+      if (trimmed.includes('\t')) {
+        // Tab-separated (highest priority)
+        const parts = trimmed.split('\t').map(p => p.trim()).filter(p => p);
+        if (parts.length >= 2) {
+          category = parts[0];
+          gene = parts[1];
+          hasTwoColumn = true;
+        } else if (parts.length === 1) {
+          gene = parts[0];
+        }
+      } else if (trimmed.includes(',')) {
+        // Comma-separated (check if it's part of two-column format)
+        const parts = trimmed.split(',').map(p => p.trim()).filter(p => p);
+        if (parts.length >= 2) {
+          category = parts[0];
+          gene = parts[1];
+          hasTwoColumn = true;
+        } else if (parts.length === 1) {
+          gene = parts[0];
+        }
+      } else if (trimmed.includes(' ')) {
+        // Space-separated: find last space to support "T cell Cd3d"
+        const lastSpaceIdx = trimmed.lastIndexOf(' ');
+        const beforeSpace = trimmed.substring(0, lastSpaceIdx).trim();
+        const afterSpace = trimmed.substring(lastSpaceIdx + 1).trim();
+
+        if (beforeSpace && afterSpace) {
+          category = beforeSpace;
+          gene = afterSpace;
+          hasTwoColumn = true;
+        } else {
+          gene = trimmed;
+        }
+      } else {
+        // Single word, treat as gene only
+        gene = trimmed;
+      }
+
+      if (gene) {
+        genes.push(gene);
+
+        if (category) {
+          // Check if this category already exists
+          let group = detectedGroups.find(g => g.category === category);
+          if (!group) {
+            group = { category, genes: [] };
+            detectedGroups.push(group);
+          }
+          group.genes.push(gene);
+        }
+      }
+    }
+
+    // Only return groups if we detected at least one two-column line
+    return {
+      genes,
+      groups: hasTwoColumn ? detectedGroups : []
+    };
   };
 
   const validateGenes = (genes) => {
@@ -222,15 +409,31 @@ const DotPlot = (props) => {
     event.target.value = "";
   };
 
+  const handleClassicMarkerSelection = (selections) => {
+    setSelectedClassicMarkers(selections || []);
+    // The useEffect will handle updating gene groups and input
+  };
+
   const handleGeneratePlot = () => {
     let genes;
     let flatWithCategory = null;
+    let detectedGroups = [];
 
     if (geneGroups.length > 0) {
+      // From file upload
       genes = geneGroups.flatMap((g) => g.genes);
       flatWithCategory = geneGroups.flatMap((g) => g.genes.map((gene) => [gene, g.category]));
+      detectedGroups = geneGroups;
     } else {
-      genes = parseGeneInput(geneInput);
+      // From text input - now supports both single-column and two-column format
+      const parsed = parseGeneInput(geneInput);
+      genes = parsed.genes;
+
+      if (parsed.groups.length > 0) {
+        // Two-column format detected in input
+        flatWithCategory = parsed.groups.flatMap((g) => g.genes.map((gene) => [gene, g.category]));
+        detectedGroups = parsed.groups;
+      }
     }
 
     if (genes.length === 0) {
@@ -249,7 +452,14 @@ const DotPlot = (props) => {
     }
 
     if (flatWithCategory && indices.length > 0) {
-      const validCategories = indices.map((i) => flatWithCategory[i][1]);
+      // Build a map from original gene name (lowercase) to category
+      const geneToCategory = {};
+      flatWithCategory.forEach(([gene, category]) => {
+        geneToCategory[gene.toLowerCase()] = category;
+      });
+
+      // Map valid genes to their categories
+      const validCategories = valid.map((gene) => geneToCategory[gene.toLowerCase()]);
       const ranges = [];
       let start = 0;
       for (let i = 1; i <= validCategories.length; i++) {
@@ -328,7 +538,7 @@ const DotPlot = (props) => {
     }
 
     // Canvas dimensions
-    const margin = { top: 100, right: 200, bottom: 50, left: 150 };
+    const margin = { top: 100, right: 200, bottom: 100, left: 150 };
     const cellWidth = 35;
     const cellHeight = 25;
     const width = geneNames.length * cellWidth + margin.left + margin.right;
@@ -362,21 +572,6 @@ const DotPlot = (props) => {
     // Limit max radius to prevent oversized dots
     const maxRadius = Math.min(cellWidth / 2 - 2, cellHeight / 2 - 2, 14);
     const sizeScale = d3.scaleSqrt().domain([0, 1]).range([0, maxRadius]);
-
-    // Draw category labels (above gene names) when uploaded file had col1=category, col2=gene
-    if (groupRanges && groupRanges.length > 0) {
-      ctx.font = "bold 11px sans-serif";
-      ctx.fillStyle = "black";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const categoryY = margin.top - 28;
-      groupRanges.forEach(({ category, startCol, endCol }) => {
-        const startX = margin.left + startCol * cellWidth;
-        const endX = margin.left + endCol * cellWidth;
-        const centerX = (startX + endX) / 2;
-        ctx.fillText(String(category), centerX, categoryY);
-      });
-    }
 
     // Draw gene labels (top): after -45° rotation, left end of text aligns with column center
     ctx.font = "12px sans-serif";
@@ -423,6 +618,37 @@ const DotPlot = (props) => {
         }
       });
     });
+
+    // Draw category lines and labels below the plot
+    if (groupRanges && groupRanges.length > 0) {
+      const plotBottom = margin.top + orderedClusters.length * cellHeight;
+      const lineY = plotBottom + 20; // 20px below the plot
+      const textY = lineY + 15; // 15px below the line
+      const lineThickness = 2.5;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = lineThickness;
+      ctx.fillStyle = "black";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      groupRanges.forEach(({ category, startCol, endCol }) => {
+        // Calculate line start and end positions (center of first and last gene columns)
+        const startX = margin.left + startCol * cellWidth + cellWidth / 2;
+        const endX = margin.left + (endCol - 1) * cellWidth + cellWidth / 2;
+        const centerX = (startX + endX) / 2;
+
+        // Draw horizontal line
+        ctx.beginPath();
+        ctx.moveTo(startX, lineY);
+        ctx.lineTo(endX, lineY);
+        ctx.stroke();
+
+        // Draw category text centered below the line
+        ctx.fillText(String(category), centerX, textY);
+      });
+    }
 
     // Draw legend (top aligned with plot top edge)
     const legendX = width - margin.right + 20;
@@ -474,6 +700,42 @@ const DotPlot = (props) => {
     ctx.fillText("0", legendX + gradientWidth + 5, colorLegendY + gradientHeight + 4);
   };
 
+  // Draggable panel handlers
+  const handleMouseDown = (e) => {
+    if (e.target.classList.contains('floating-panel-header') ||
+        e.target.closest('.floating-panel-header')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - panelPosition.x,
+        y: e.clientY - panelPosition.y,
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setPanelPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
   return (
     <div className="dotplot-container">
       {/* Left Panel - Controls */}
@@ -513,7 +775,70 @@ const DotPlot = (props) => {
           </Label>
 
           <Label style={{ marginTop: "15px" }}>
-            Gene input (one per line or comma-separated):
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "5px" }}>
+              Gene input:
+              <Popover2
+                content={
+                  <div style={{ padding: "15px", maxWidth: "400px" }}>
+                    <h4 style={{ marginTop: 0 }}>Gene Input Format</h4>
+                    <p><strong>Single column</strong> (one gene per line):</p>
+                    <pre style={{
+                      background: "#f5f5f5",
+                      padding: "10px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      overflow: "auto"
+                    }}>
+{`CD3D
+CD8A
+CD4
+CD19`}
+                    </pre>
+                    <p><strong>Two columns</strong> (celltype + gene):</p>
+                    <ul style={{ marginLeft: "20px", marginBottom: "10px" }}>
+                      <li><strong>Tab-separated</strong> (recommended):</li>
+                    </ul>
+                    <pre style={{
+                      background: "#f5f5f5",
+                      padding: "10px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      overflow: "auto"
+                    }}>
+{`T cell	CD3D
+T cell	CD8A
+B cell	CD19`}
+                    </pre>
+                    <ul style={{ marginLeft: "20px", marginBottom: "10px" }}>
+                      <li><strong>Comma-separated:</strong></li>
+                    </ul>
+                    <pre style={{
+                      background: "#f5f5f5",
+                      padding: "10px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      overflow: "auto"
+                    }}>
+{`T cell,CD3D
+T cell,CD8A
+B cell,CD19`}
+                    </pre>
+                  </div>
+                }
+                placement="right"
+              >
+                <Tooltip2 content="Click for input format help" placement="top">
+                  <Icon
+                    icon="help"
+                    style={{
+                      marginLeft: "8px",
+                      cursor: "pointer",
+                      color: "#5C7080"
+                    }}
+                  />
+                </Tooltip2>
+              </Popover2>
+            </div>
             <TextArea
               value={geneInput}
               onChange={(e) => {
@@ -597,11 +922,123 @@ B cells,MS4A1`}
                 setError(null);
                 setValidGenes([]);
                 setInvalidGenes([]);
+                setSelectedClassicMarkers([]);
+                setMarkerSpecies("human");
               }}
               disabled={loading}
               style={{ marginLeft: "10px" }}
             />
           </div>
+
+          <Label style={{ marginTop: "15px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "5px", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                Classic marker:
+                <Popover2
+                  content={
+                    <div style={{ padding: "15px", maxWidth: "350px" }}>
+                      <h4 style={{ marginTop: 0 }}>Classic Marker Genes</h4>
+                      <p>Select one or more cell types to automatically populate marker genes.</p>
+                      <p><strong>Categories available:</strong></p>
+                      <ul style={{ marginLeft: "20px", fontSize: "12px" }}>
+                        <li>Epithelial Cells (squamous, columnar, basal, etc.)</li>
+                        <li>Immune Cells (T, B, NK, myeloid, etc.)</li>
+                        <li>Stromal Cells (fibroblasts, endothelial, etc.)</li>
+                        <li>Neural Cells (neurons, astrocytes, etc.)</li>
+                        <li>Cell Cycle (cycling cells)</li>
+                      </ul>
+                      <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
+                        <strong>Species:</strong> Select <em>Human</em> for uppercase gene names (e.g., CD3D) or <em>Mouse</em> for title case (e.g., Cd3d).
+                      </p>
+                    </div>
+                  }
+                  placement="right"
+                >
+                  <Tooltip2 content="Click for more info" placement="top">
+                    <Icon
+                      icon="help"
+                      style={{
+                        marginLeft: "8px",
+                        cursor: "pointer",
+                        color: "#5C7080"
+                      }}
+                    />
+                  </Tooltip2>
+                </Popover2>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <HTMLSelect
+                  value={markerSpecies}
+                  onChange={(e) => setMarkerSpecies(e.target.value)}
+                  disabled={loading}
+                  style={{ minWidth: "90px" }}
+                >
+                  <option value="human">Human</option>
+                  <option value="mouse">Mouse</option>
+                </HTMLSelect>
+              </div>
+            </div>
+            <MultiSelect
+              items={(() => {
+                const items = [];
+                Object.entries(CLASSIC_MARKERS).forEach(([major, subs]) => {
+                  Object.keys(subs).forEach((sub) => {
+                    items.push(`${major} > ${sub}`);
+                  });
+                });
+                return items;
+              })()}
+              selectedItems={selectedClassicMarkers}
+              onItemSelect={(item) => {
+                const newSelection = selectedClassicMarkers.includes(item)
+                  ? selectedClassicMarkers.filter((s) => s !== item)
+                  : [...selectedClassicMarkers, item];
+                handleClassicMarkerSelection(newSelection);
+              }}
+              itemRenderer={(item, { handleClick, modifiers }) => {
+                const [major, sub] = item.split(" > ");
+                const genes = CLASSIC_MARKERS[major]?.[sub] || [];
+                const isSelected = selectedClassicMarkers.includes(item);
+                return (
+                  <MenuItem
+                    key={item}
+                    active={modifiers.active}
+                    selected={isSelected}
+                    onClick={handleClick}
+                    text={
+                      <div>
+                        <div style={{ fontWeight: "500" }}>{sub}</div>
+                        <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>
+                          {major} • {genes.length} genes
+                        </div>
+                      </div>
+                    }
+                    icon={isSelected ? "tick" : "blank"}
+                  />
+                );
+              }}
+              itemPredicate={(query, item) => {
+                const lowerQuery = query.toLowerCase();
+                return item.toLowerCase().includes(lowerQuery);
+              }}
+              tagRenderer={(item) => {
+                const [, sub] = item.split(" > ");
+                return simplifyCellTypeName(sub);
+              }}
+              onRemove={(item) => {
+                const newSelection = selectedClassicMarkers.filter((s) => s !== item);
+                handleClassicMarkerSelection(newSelection);
+              }}
+              fill
+              disabled={loading}
+              placeholder="Select cell types..."
+              popoverProps={{
+                minimal: true,
+                matchTargetWidth: false,
+                popoverClassName: "dotplot-classic-marker-popover"
+              }}
+            />
+          </Label>
         </div>
       </div>
 
@@ -673,6 +1110,73 @@ B cells,MS4A1`}
           </div>
         </div>
       </div>
+
+      {/* Floating Annotation Panel Toggle Button */}
+      <Tooltip2 content="Cluster Annotation" placement="left">
+        <Button
+          className="dotplot-annotation-toggle-btn"
+          icon="annotation"
+          intent={showAnnotationPanel ? "primary" : "none"}
+          onClick={() => setShowAnnotationPanel(!showAnnotationPanel)}
+        />
+      </Tooltip2>
+
+      {/* Floating Annotation Panel */}
+      {showAnnotationPanel && (
+        <div
+          ref={floatingPanelRef}
+          className="dotplot-floating-panel"
+          style={{
+            position: 'fixed',
+            left: `${panelPosition.x}px`,
+            top: `${panelPosition.y}px`,
+            width: '360px',
+            maxHeight: '80vh',
+            backgroundColor: 'white',
+            borderRadius: '4px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          <div
+            className="floating-panel-header"
+            style={{
+              padding: '10px 15px',
+              backgroundColor: '#f5f5f5',
+              borderBottom: '1px solid #ddd',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              userSelect: 'none',
+            }}
+          >
+            <strong>Cluster Annotation</strong>
+            <Button
+              minimal
+              small
+              icon="cross"
+              onClick={() => setShowAnnotationPanel(false)}
+            />
+          </div>
+          <div
+            style={{
+              flex: 1,
+              overflow: 'auto',
+            }}
+          >
+            <ClusterAnnotation
+              scranWorker={props.scranWorker}
+              setReqAnnotation={setReqAnnotation}
+              onlyAnnotation={true}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
