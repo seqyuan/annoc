@@ -495,6 +495,16 @@ const ClusterAnnotation = (props) => {
         uniqueClusters = data.levels;
       }
 
+      // Smart sort: if all values are numeric, sort numerically instead of lexicographically
+      // This ensures "0", "1", "2", "10", "11" instead of "0", "1", "10", "11", "2"
+      const allNumeric = uniqueClusters.every(c => {
+        const str = String(c).trim();
+        return str !== '' && !isNaN(Number(str));
+      });
+      if (allNumeric) {
+        uniqueClusters = [...uniqueClusters].sort((a, b) => Number(String(a)) - Number(String(b)));
+      }
+
       // Check if we have a saved order for this annotation
       const savedOrder = globalClusterOrder[selectedMetadata];
       if (savedOrder) {
