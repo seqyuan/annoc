@@ -10,6 +10,8 @@ import {
   isArrayOrView,
 } from "./helpers.js";
 import { code } from "../utils/utils.js";
+import { isSeuratObject, convertSeuratToSCE } from "./seurat-adapter.js";
+import { SeuratDataset } from "./SeuratDataset.js";
 /***************************************/
 
 const default_cluster = `${code}::CLUSTERS`;
@@ -34,6 +36,13 @@ function createDataset(args, setOpts = false) {
       args.rds,
       setOpts ? args.options : {}
     );
+  } else if (args.format === "Seurat") {
+    // Use custom SeuratDataset for native Seurat objects
+    const dataset = new SeuratDataset(args.rds);
+    if (setOpts) {
+      dataset.setOptions(args.options);
+    }
+    return dataset;
   } else if (args.format === "ZippedArtifactdb") {
     return new bakana.ZippedArtifactdbResult(
       args.zipname,
@@ -62,6 +71,7 @@ function summarizeResult(summary, args) {
 
   if (
     args.format === "SummarizedExperiment" ||
+    args.format === "Seurat" ||
     args.format === "ZippedArtifactdb"
   ) {
     tmp_meta["modality_features"] = {};
@@ -101,12 +111,23 @@ function summarizeResult(summary, args) {
     tmp_meta["all_assay_names"] = summary.all_assay_names;
   } else if (
     args.format === "SummarizedExperiment" ||
+    args.format === "Seurat" ||
     args.format === "ZippedArtifactdb"
   ) {
     tmp_meta["modality_assay_names"] = summary.modality_assay_names;
   }
 
   tmp_meta.reduced_dimension_names = summary.reduced_dimension_names;
+
+  // Add Seurat-specific fields for SeuratCard
+  if (args.format === "Seurat") {
+    // Add flattened fields for SeuratCard while keeping the original structure
+    tmp_meta.cells_count = tmp_meta.cells.numberOfCells;
+    tmp_meta.assays = Object.keys(summary.modality_assay_names || {});
+    tmp_meta.reductions = summary.reduced_dimension_names || [];
+    tmp_meta.metadata_columns = Object.keys(cells_summary);
+  }
+
   return tmp_meta;
 }
 
@@ -219,13 +240,16 @@ onmessage = function (msg) {
     fatal = true;
     loaded
       .then(async (x) => {
+        console.log("[EXPLORE] Starting exploration...");
         let inputs = payload.inputs;
         let files = inputs.files;
 
         if (files !== null) {
+          console.log("[EXPLORE] Files to process:", Object.keys(files));
           // Extracting existing datasets from the preflights.
           let current = {};
           for (const [k, v] of Object.entries(files)) {
+            console.log(`[EXPLORE] Processing file: ${k}, format: ${v.format}`);
             if ("uid" in v && v.uid in preflights) {
               preflights[v.uid].clear();
               delete preflights[k];
@@ -235,13 +259,16 @@ onmessage = function (msg) {
           }
 
           for (const [k, v] of Object.entries(current)) {
+            console.log(`[EXPLORE] Loading dataset: ${k}`);
             dataset = await v.load();
+            console.log(`[EXPLORE] Dataset loaded successfully: ${k}`);
 
             let finput = files[k];
 
             let step_inputs = "inputs";
             postAttempt(step_inputs);
 
+            console.log("[EXPLORE] Extracting cell annotations...");
             // extract cell annotations
             let annotation_keys = {};
             for (const k of dataset.cells.columnNames()) {
@@ -255,6 +282,7 @@ onmessage = function (msg) {
                 annotation_keys[k] = ksumm;
               }
             }
+            console.log("[EXPLORE] Cell annotations extracted:", Object.keys(annotation_keys));
 
             let step_inputs_resp = {
               annotations: annotation_keys,
@@ -263,6 +291,7 @@ onmessage = function (msg) {
               num_genes: {},
             };
 
+            console.log("[EXPLORE] Extracting features...");
             for (const [k, v] of Object.entries(dataset.features)) {
               step_inputs_resp["genes"][k] = {};
               step_inputs_resp["num_genes"][k] = v.numberOfRows();
@@ -324,14 +353,23 @@ onmessage = function (msg) {
             if ("uid" in v) {
               if (!(v.uid in preflights)) {
                 preflights[v.uid] = createDataset(v);
+                // For Seurat datasets, we need to load before calling summary
+                if (v.format === "Seurat") {
+                  await preflights[v.uid].load();
+                }
                 preflights_summary[v.uid] = await preflights[v.uid].summary();
               }
               current[k] = preflights[v.uid];
               summary[k] = summarizeResult(preflights_summary[v.uid], v);
             } else {
               let tmp_dataset = createDataset(v);
+              // For Seurat datasets, we need to load before calling summary
+              if (v.format === "Seurat") {
+                await tmp_dataset.load();
+              }
+              let tmp_summary = await tmp_dataset.summary();
               current[k] = tmp_dataset;
-              summary[k] = summarizeResult(current[k], v);
+              summary[k] = summarizeResult(tmp_summary, v);
             }
           }
 
@@ -690,6 +728,80 @@ onmessage = function (msg) {
       .catch((err) => {
         console.error(err);
         postError(type, err, fatal);
+      });
+  } else if (type === "computeDE") {
+    loaded
+      .then((x) => {
+        let rank_type = payload.rank_type || "cohen-min";
+        let modality = payload.modality || "RNA";
+        let annotation = payload.annotation;
+        let targetGroups = payload.targetGroups;
+        let compareMode = payload.compareMode;
+        let compareGroups = payload.compareGroups;
+
+        if (!targetGroups || targetGroups.length === 0) {
+          postError(type, new Error("No target groups specified"), false);
+          return;
+        }
+
+        let annotation_vec = scran.factorize(getAnnotation(annotation));
+        let mds = getMarkerStandAloneForAnnot(annotation, annotation_vec);
+
+        // Create binary grouping for target vs reference
+        let target_cells = [];
+        let ref_cells = [];
+        let anno_array = getAnnotation(annotation);
+
+        for (let i = 0; i < anno_array.length; i++) {
+          let cellGroup = String(anno_array[i]);
+          if (targetGroups.includes(cellGroup)) {
+            target_cells.push(i);
+          } else if (compareMode === "vsAll") {
+            ref_cells.push(i);
+          } else if (compareGroups.includes(cellGroup)) {
+            ref_cells.push(i);
+          }
+        }
+
+        if (target_cells.length === 0) {
+          postError(type, new Error("No cells in target groups"), false);
+          return;
+        }
+        if (ref_cells.length === 0) {
+          postError(type, new Error("No cells in reference groups"), false);
+          return;
+        }
+
+        // Create binary grouping: 0 = reference, 1 = target
+        let binary_groups = new Int32Array(anno_array.length);
+        binary_groups.fill(-1);
+        for (let idx of target_cells) {
+          binary_groups[idx] = 1;
+        }
+        for (let idx of ref_cells) {
+          binary_groups[idx] = 0;
+        }
+
+        // Use scran.scoreMarkers with binary grouping
+        let mat = state.inputs.fetchCountMatrix();
+        let raw_res = scran.scoreMarkers(mat, binary_groups, { numberOfThreads: 4 });
+        let resp = bakana.formatMarkerResults(raw_res, 1, rank_type);
+        raw_res.free();
+
+        var transferrable = [];
+        extractBuffers(resp, transferrable);
+        postMessage(
+          {
+            type: "computeDE_DATA",
+            resp: resp,
+            msg: "Success: COMPUTE_DE done",
+          },
+          transferrable
+        );
+      })
+      .catch((err) => {
+        console.error(err);
+        postError(type, err, false);
       });
   } else if (type === "computeFeaturesetSummary") {
     loaded
@@ -1233,6 +1345,291 @@ onmessage = function (msg) {
           type: "findSubcluster_DATA",
           resp: { success: false, message: (err && err.message) || String(err) },
           msg: "findSubcluster failed"
+        });
+      });
+  } else if (type === "exportCellAnnotations") {
+    loaded
+      .then((x) => {
+        const { sourceAnnotation, clusterAnnotationMap, columnName } = payload;
+
+        try {
+          // Get cell barcodes
+          const rowNames = dataset?.cells?.rowNames?.() || null;
+          if (!rowNames) {
+            postMessage({
+              type: "exportCellAnnotations_DATA",
+              resp: {
+                success: false,
+                message: "Dataset has no cell barcodes"
+              },
+            });
+            return;
+          }
+
+          // Get cluster labels for each cell
+          const labels = getAnnotationLabels(sourceAnnotation);
+          if (!labels || labels.length === 0) {
+            postMessage({
+              type: "exportCellAnnotations_DATA",
+              resp: {
+                success: false,
+                message: "Could not retrieve annotation labels"
+              },
+            });
+            return;
+          }
+
+          // Build CSV content
+          const csvLines = [`barcode,cluster,${columnName}`];
+          for (let i = 0; i < labels.length; i++) {
+            const barcode = rowNames[i] || "";
+            const cluster = String(labels[i] || "");
+            const annotation = clusterAnnotationMap[cluster] || "";
+            csvLines.push(`${barcode},${cluster},${annotation}`);
+          }
+
+          const csvContent = csvLines.join("\n");
+
+          postMessage({
+            type: "exportCellAnnotations_DATA",
+            resp: {
+              success: true,
+              csvContent,
+              filename: `${columnName}_cell_annotations.csv`
+            },
+          });
+        } catch (err) {
+          console.error("Error exporting cell annotations:", err);
+          postMessage({
+            type: "exportCellAnnotations_DATA",
+            resp: {
+              success: false,
+              message: err.message || String(err)
+            },
+          });
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        postMessage({
+          type: "exportCellAnnotations_DATA",
+          resp: {
+            success: false,
+            message: err.message || String(err)
+          },
+        });
+      });
+  } else if (type === "checkH5adMarkers") {
+    loaded
+      .then((x) => {
+        let hasMarkers = false;
+        try {
+          if (dataset && dataset.other_data && dataset.other_data.uns) {
+            const uns = dataset.other_data.uns;
+            // Check for common marker gene keys in uns
+            const markerKeys = ['rank_genes_groups', 'markers', 'top_markers'];
+            for (const key of markerKeys) {
+              if (key in uns) {
+                hasMarkers = true;
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error checking H5AD markers:", err);
+        }
+        postMessage({
+          type: "checkH5adMarkers_DATA",
+          resp: { hasMarkers },
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        postMessage({
+          type: "checkH5adMarkers_DATA",
+          resp: { hasMarkers: false },
+        });
+      });
+  } else if (type === "generateTopMarkerDotplot") {
+    loaded
+      .then(async (x) => {
+        const { annotation, topN = 7, uploadedMarkers, useH5adMarkers } = payload;
+
+        try {
+          let markersByCluster = {};
+
+          // Get markers from H5AD if available
+          if (useH5adMarkers && dataset && dataset.other_data && dataset.other_data.uns) {
+            const uns = dataset.other_data.uns;
+            if ('rank_genes_groups' in uns) {
+              const rgg = uns.rank_genes_groups;
+              if (rgg.names) {
+                const clusters = Object.keys(rgg.names);
+                for (const cluster of clusters) {
+                  const genes = rgg.names[cluster];
+                  markersByCluster[cluster] = genes.slice(0, topN);
+                }
+              }
+            }
+          } else if (uploadedMarkers) {
+            // Use uploaded markers
+            markersByCluster = uploadedMarkers;
+            // Limit to topN
+            for (const cluster in markersByCluster) {
+              markersByCluster[cluster] = markersByCluster[cluster].slice(0, topN);
+            }
+          } else {
+            postMessage({
+              type: "generateTopMarkerDotplot_DATA",
+              resp: {
+                success: false,
+                message: "No marker genes available. Please upload a marker file."
+              },
+            });
+            return;
+          }
+
+          // Get annotation labels
+          const labels = getAnnotationLabels(annotation);
+          const clusters = [...new Set(labels.map(String))].sort((a, b) => {
+            const numA = parseInt(a);
+            const numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+          });
+
+          // Collect all unique genes
+          const allGenes = new Set();
+          for (const cluster of clusters) {
+            if (markersByCluster[cluster]) {
+              markersByCluster[cluster].forEach(g => allGenes.add(g));
+            }
+          }
+          const genes = Array.from(allGenes);
+
+          if (genes.length === 0) {
+            postMessage({
+              type: "generateTopMarkerDotplot_DATA",
+              resp: {
+                success: false,
+                message: "No marker genes found for selected clusters."
+              },
+            });
+            return;
+          }
+
+          // Get gene indices
+          const geneNames = dataset.all_features.rowNames();
+          const geneIndices = [];
+          const validGenes = [];
+          for (const gene of genes) {
+            const idx = geneNames.indexOf(gene);
+            if (idx >= 0) {
+              geneIndices.push(idx);
+              validGenes.push(gene);
+            }
+          }
+
+          if (geneIndices.length === 0) {
+            postMessage({
+              type: "generateTopMarkerDotplot_DATA",
+              resp: {
+                success: false,
+                message: "None of the marker genes found in dataset."
+              },
+            });
+            return;
+          }
+
+          // Get expression matrix
+          const matrix = dataset.matrix("RNA");
+          const nCells = labels.length;
+
+          // Calculate mean expression and percent expressed per cluster
+          const exprMatrix = [];
+          const pctMatrix = [];
+
+          for (const gene of validGenes) {
+            const geneIdx = geneNames.indexOf(gene);
+            const exprRow = [];
+            const pctRow = [];
+
+            for (const cluster of clusters) {
+              const cellIndices = [];
+              for (let i = 0; i < nCells; i++) {
+                if (String(labels[i]) === cluster) {
+                  cellIndices.push(i);
+                }
+              }
+
+              if (cellIndices.length === 0) {
+                exprRow.push(0);
+                pctRow.push(0);
+                continue;
+              }
+
+              let sum = 0;
+              let count = 0;
+              let expressed = 0;
+
+              for (const cellIdx of cellIndices) {
+                const val = matrix.row(geneIdx)[cellIdx] || 0;
+                sum += val;
+                count++;
+                if (val > 0) expressed++;
+              }
+
+              const meanExpr = count > 0 ? sum / count : 0;
+              const pctExpr = count > 0 ? expressed / count : 0;
+
+              exprRow.push(meanExpr);
+              pctRow.push(pctExpr);
+            }
+
+            exprMatrix.push(exprRow);
+            pctMatrix.push(pctRow);
+          }
+
+          // Normalize expression matrix to 0-1 range per gene
+          const normalizedMatrix = exprMatrix.map(row => {
+            const max = Math.max(...row);
+            const min = Math.min(...row);
+            const range = max - min;
+            if (range === 0) return row.map(() => 0);
+            return row.map(val => (val - min) / range);
+          });
+
+          postMessage({
+            type: "generateTopMarkerDotplot_DATA",
+            resp: {
+              success: true,
+              data: {
+                clusters,
+                genes: validGenes,
+                matrix: normalizedMatrix,
+                pctMatrix,
+              },
+            },
+          });
+        } catch (err) {
+          console.error("Error generating top marker dotplot:", err);
+          postMessage({
+            type: "generateTopMarkerDotplot_DATA",
+            resp: {
+              success: false,
+              message: err.message || String(err)
+            },
+          });
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        postMessage({
+          type: "generateTopMarkerDotplot_DATA",
+          resp: {
+            success: false,
+            message: err.message || String(err)
+          },
         });
       });
   } else {

@@ -8,7 +8,7 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
   const { annotationCols, annotationObj, setReqAnnotation } = useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState("");
-  const [targetGroup, setTargetGroup] = useState("");
+  const [targetGroups, setTargetGroups] = useState([]);
   const [compareMode, setCompareMode] = useState("vsAll");
   const [compareGroups, setCompareGroups] = useState([]);
   const [rankType, setRankType] = useState("cohen-min");
@@ -52,15 +52,8 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
     return [];
   })();
 
-  // Set default target group when groups change
-  useEffect(() => {
-    if (availableGroups.length > 0 && !targetGroup) {
-      setTargetGroup(availableGroups[0]);
-    }
-  }, [availableGroups]);
-
   const handleRunDE = () => {
-    if (!targetGroup) return;
+    if (targetGroups.length === 0) return;
 
     setLoading(true);
     setResults(null);
@@ -69,13 +62,21 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
       type: "computeDE",
       payload: {
         annotation: selectedAnnotation,
-        target: targetGroup,
+        targetGroups: targetGroups,
         compareMode,
         compareGroups: compareMode === "vsAll" ? [] : compareGroups,
         rank_type: rankType,
         modality
       }
     });
+  };
+
+  const handleTargetGroupToggle = (group) => {
+    setTargetGroups(prev =>
+      prev.includes(group)
+        ? prev.filter(g => g !== group)
+        : [...prev, group]
+    );
   };
 
   useEffect(() => {
@@ -93,15 +94,11 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
   }, [scranWorker]);
 
   const handleCompareGroupToggle = (group) => {
-    if (compareMode === "vsOne") {
-      setCompareGroups([group]);
-    } else if (compareMode === "vsMultiple") {
-      setCompareGroups(prev =>
-        prev.includes(group)
-          ? prev.filter(g => g !== group)
-          : [...prev, group]
-      );
-    }
+    setCompareGroups(prev =>
+      prev.includes(group)
+        ? prev.filter(g => g !== group)
+        : [...prev, group]
+    );
   };
 
   return (
@@ -115,7 +112,7 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
             value={selectedAnnotation}
             onChange={(e) => {
               setSelectedAnnotation(e.target.value);
-              setTargetGroup("");
+              setTargetGroups([]);
               setCompareGroups([]);
             }}
           >
@@ -126,18 +123,22 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
         </div>
 
         <div className="de-control-group">
-          <label>Target Group:</label>
-          <select
-            value={targetGroup}
-            onChange={(e) => setTargetGroup(e.target.value)}
-          >
+          <label>Target Group(s):</label>
+          <div className="de-group-selector">
             {availableGroups.length === 0 && (
-              <option value="">Loading...</option>
+              <div style={{ padding: "8px", color: "#999" }}>Loading...</div>
             )}
             {availableGroups.map(group => (
-              <option key={group} value={group}>{group}</option>
+              <label key={group} className="de-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={targetGroups.includes(group)}
+                  onChange={() => handleTargetGroupToggle(group)}
+                />
+                {group}
+              </label>
             ))}
-          </select>
+          </div>
         </div>
 
         <div className="de-control-group">
@@ -155,17 +156,8 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
             <label>
               <input
                 type="radio"
-                value="vsOne"
-                checked={compareMode === "vsOne"}
-                onChange={(e) => setCompareMode(e.target.value)}
-              />
-              vs One Group
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="vsMultiple"
-                checked={compareMode === "vsMultiple"}
+                value="vsSelected"
+                checked={compareMode === "vsSelected"}
                 onChange={(e) => setCompareMode(e.target.value)}
               />
               vs Selected Groups
@@ -178,11 +170,11 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
             <label>Reference Group(s):</label>
             <div className="de-group-selector">
               {availableGroups
-                .filter(g => g !== targetGroup)
+                .filter(g => !targetGroups.includes(g))
                 .map(group => (
                   <label key={group} className="de-checkbox-label">
                     <input
-                      type={compareMode === "vsOne" ? "radio" : "checkbox"}
+                      type="checkbox"
                       checked={compareGroups.includes(group)}
                       onChange={() => handleCompareGroupToggle(group)}
                     />
