@@ -5,10 +5,9 @@ import DETable from "./DETable";
 import "./de.css";
 
 export default function DifferentialExpression({ scranWorker, inputData }) {
-  const { annotationCols } = useContext(AppContext);
+  const { annotationCols, annotationObj, setReqAnnotation } = useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState("");
-  const [availableGroups, setAvailableGroups] = useState([]);
   const [targetGroup, setTargetGroup] = useState("");
   const [compareMode, setCompareMode] = useState("vsAll");
   const [compareGroups, setCompareGroups] = useState([]);
@@ -37,28 +36,28 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
     }
   }, [annotationCols]);
 
-  // Get available groups for selected annotation
+  // Request annotation data if not loaded
   useEffect(() => {
-    if (!selectedAnnotation || !scranWorker) return;
+    if (selectedAnnotation && !annotationObj[selectedAnnotation] && setReqAnnotation) {
+      setReqAnnotation(selectedAnnotation);
+    }
+  }, [selectedAnnotation, annotationObj, setReqAnnotation]);
 
-    scranWorker.postMessage({
-      type: "getAnnotation",
-      payload: { annotation: selectedAnnotation }
-    });
+  // Get available groups from annotationObj
+  const availableGroups = (() => {
+    if (!selectedAnnotation || !annotationObj[selectedAnnotation]) return [];
+    const data = annotationObj[selectedAnnotation];
+    if (data.type === "array") return [...new Set(data.values)].sort();
+    if (data.type === "factor") return data.levels || [];
+    return [];
+  })();
 
-    const handler = (e) => {
-      if (e.data.type === "getAnnotation_DATA") {
-        const uniqueGroups = [...new Set(e.data.resp)].sort();
-        setAvailableGroups(uniqueGroups);
-        if (uniqueGroups.length > 0) {
-          setTargetGroup(uniqueGroups[0]);
-        }
-      }
-    };
-
-    scranWorker.addEventListener("message", handler);
-    return () => scranWorker.removeEventListener("message", handler);
-  }, [selectedAnnotation, scranWorker]);
+  // Set default target group when groups change
+  useEffect(() => {
+    if (availableGroups.length > 0 && !targetGroup) {
+      setTargetGroup(availableGroups[0]);
+    }
+  }, [availableGroups]);
 
   const handleRunDE = () => {
     if (!targetGroup) return;
@@ -114,7 +113,11 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
           <label>Annotation:</label>
           <select
             value={selectedAnnotation}
-            onChange={(e) => setSelectedAnnotation(e.target.value)}
+            onChange={(e) => {
+              setSelectedAnnotation(e.target.value);
+              setTargetGroup("");
+              setCompareGroups([]);
+            }}
           >
             {annotations.map(anno => (
               <option key={anno} value={anno}>{anno}</option>
@@ -128,6 +131,9 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
             value={targetGroup}
             onChange={(e) => setTargetGroup(e.target.value)}
           >
+            {availableGroups.length === 0 && (
+              <option value="">Loading...</option>
+            )}
             {availableGroups.map(group => (
               <option key={group} value={group}>{group}</option>
             ))}
