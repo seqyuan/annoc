@@ -604,7 +604,7 @@ const TopMarker = (props) => {
             }}>
               {filteredGenes.map((gene, index) => (
                 <div key={index} style={{ padding: "2px 0" }}>
-                  {index + 1}. {gene}
+                  {gene}
                 </div>
               ))}
             </div>
