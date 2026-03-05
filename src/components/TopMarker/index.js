@@ -18,42 +18,51 @@ import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
 import "./topmarker.css";
 
-// Parse uploaded marker file
-function isHeaderRow(cells) {
-  if (!cells || cells.length < 2) return false;
-  const headers = cells.map((c) => String(c ?? "").trim().toLowerCase());
-  return (
-    headers.includes("cluster") ||
-    headers.includes("gene") ||
-    headers.includes("group") ||
-    headers.includes("names")
-  );
-}
-
-function parseCsvOrTxt(text) {
-  const rows = [];
+// Parse uploaded marker file - return full table with headers
+function parseCsvOrTxtFull(text) {
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  for (const line of lines) {
-    const cells = line.split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
-    if (cells.length >= 2 && cells[0] && cells[1]) rows.push([cells[0], cells[1]]);
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  const firstLine = lines[0].split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+  const headers = firstLine;
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+    if (cells.length === headers.length) {
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = cells[idx];
+      });
+      rows.push(row);
+    }
   }
-  if (rows.length > 0 && isHeaderRow(rows[0])) rows.shift();
-  return rows;
+
+  return { headers, rows };
 }
 
-function parseXlsxBuffer(ab) {
+function parseXlsxBufferFull(ab) {
   const wb = XLSX.read(ab, { type: "array" });
   const firstSheet = wb.SheetNames[0];
   const ws = wb.Sheets[firstSheet];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+  if (data.length === 0) return { headers: [], rows: [] };
+
+  const headers = data[0].map(h => String(h || "").trim());
   const rows = [];
-  for (const row of data) {
-    if (row.length >= 2 && row[0] && row[1]) {
-      rows.push([String(row[0]).trim(), String(row[1]).trim()]);
+
+  for (let i = 1; i < data.length; i++) {
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = data[i][idx] != null ? String(data[i][idx]).trim() : "";
+    });
+    if (Object.values(row).some(v => v)) {
+      rows.push(row);
     }
   }
-  if (rows.length > 0 && isHeaderRow(rows[0])) rows.shift();
-  return rows;
+
+  return { headers, rows };
 }
 
 const TopMarker = (props) => {
@@ -68,6 +77,13 @@ const TopMarker = (props) => {
   const [hasH5adMarkers, setHasH5adMarkers] = useState(false);
   const canvasRef = useRef(null);
   const listenerRef = useRef(null);
+
+  // File upload column mapping states
+  const [uploadedFileData, setUploadedFileData] = useState(null);
+  const [fileColumns, setFileColumns] = useState([]);
+  const [clusterColumn, setClusterColumn] = useState("");
+  const [geneColumn, setGeneColumn] = useState("");
+  const [showColumnMapping, setShowColumnMapping] = useState(false);
 
   // Gene filter states
   const [filterCluster, setFilterCluster] = useState(null);
@@ -116,39 +132,68 @@ const TopMarker = (props) => {
     reader.onload = (e) => {
       try {
         const content = e.target.result;
-        let rows = [];
+        let parsed;
 
         if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-          rows = parseXlsxBuffer(content);
+          parsed = parseXlsxBufferFull(content);
         } else {
           const text = new TextDecoder().decode(content);
-          rows = parseCsvOrTxt(text);
+          parsed = parseCsvOrTxtFull(text);
         }
 
-        if (rows.length === 0) {
+        if (parsed.rows.length === 0 || parsed.headers.length === 0) {
           setError("No valid data found in file");
           return;
         }
 
-        // Group by cluster
-        const markersByCluster = {};
-        for (const [cluster, gene] of rows) {
-          if (!markersByCluster[cluster]) markersByCluster[cluster] = [];
-          markersByCluster[cluster].push(gene);
-        }
+        setUploadedFileData(parsed);
+        setFileColumns(parsed.headers);
 
-        setUploadedMarkers(markersByCluster);
+        // Auto-detect columns
+        const lowerHeaders = parsed.headers.map(h => h.toLowerCase());
+
+        // Detect cluster column
+        const clusterIdx = lowerHeaders.findIndex(h =>
+          h.includes("cluster") || h.includes("group") || h === "celltype"
+        );
+        if (clusterIdx !== -1) setClusterColumn(parsed.headers[clusterIdx]);
+
+        // Detect gene column
+        const geneIdx = lowerHeaders.findIndex(h =>
+          h.includes("gene") || h.includes("name") || h === "names"
+        );
+        if (geneIdx !== -1) setGeneColumn(parsed.headers[geneIdx]);
+
+        setShowColumnMapping(true);
         setError(null);
       } catch (err) {
         setError(`Failed to parse file: ${err.message}`);
       }
     };
 
-    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleConfirmColumnMapping = () => {
+    if (!clusterColumn || !geneColumn) {
+      setError("Please select both cluster and gene columns");
+      return;
     }
+
+    // Group by cluster
+    const markersByCluster = {};
+    uploadedFileData.rows.forEach(row => {
+      const cluster = row[clusterColumn];
+      const gene = row[geneColumn];
+      if (cluster && gene) {
+        if (!markersByCluster[cluster]) markersByCluster[cluster] = [];
+        markersByCluster[cluster].push(gene);
+      }
+    });
+
+    setUploadedMarkers(markersByCluster);
+    setShowColumnMapping(false);
+    setError(null);
   };
 
   const handleGeneratePlot = () => {
@@ -418,30 +463,81 @@ const TopMarker = (props) => {
         </Label>
 
         {!hasH5adMarkers && (
-          <Label>
-            Upload marker genes (optional)
-            <Popover2
-              content={
-                <div style={{ padding: "10px", maxWidth: "300px" }}>
-                  Upload a CSV/TSV/XLSX file with two columns: cluster and gene.
-                  Format: cluster, gene (e.g., "0, CD3D")
-                </div>
-              }
-              placement="right"
-            >
-              <Icon
-                icon="info-sign"
-                size={14}
-                style={{ marginLeft: "5px", cursor: "help" }}
+          <>
+            <Label>
+              Upload marker genes (optional)
+              <Popover2
+                content={
+                  <div style={{ padding: "10px", maxWidth: "300px" }}>
+                    Upload a CSV/TSV/XLSX file with marker genes.
+                    You'll be able to select which columns contain cluster and gene information.
+                  </div>
+                }
+                placement="right"
+              >
+                <Icon
+                  icon="info-sign"
+                  size={14}
+                  style={{ marginLeft: "5px", cursor: "help" }}
+                />
+              </Popover2>
+              <FileInput
+                text={uploadedMarkers ? "File uploaded" : "Choose file..."}
+                onInputChange={handleFileUpload}
+                disabled={loading}
+                fill
               />
-            </Popover2>
-            <FileInput
-              text={uploadedMarkers ? "File uploaded" : "Choose file..."}
-              onInputChange={handleFileUpload}
-              disabled={loading}
-              fill
-            />
-          </Label>
+            </Label>
+
+            {showColumnMapping && (
+              <Callout intent="primary" style={{ marginTop: "10px" }}>
+                <h4 style={{ marginTop: 0 }}>Select Columns</h4>
+                <Label>
+                  Cluster/Group Column
+                  <HTMLSelect
+                    value={clusterColumn}
+                    onChange={(e) => setClusterColumn(e.target.value)}
+                    fill
+                  >
+                    <option value="">Select column...</option>
+                    {fileColumns.map(col => (
+                      <option key={col} value={col}>{col}</option>
+                    ))}
+                  </HTMLSelect>
+                </Label>
+
+                <Label>
+                  Gene Column
+                  <HTMLSelect
+                    value={geneColumn}
+                    onChange={(e) => setGeneColumn(e.target.value)}
+                    fill
+                  >
+                    <option value="">Select column...</option>
+                    {fileColumns.map(col => (
+                      <option key={col} value={col}>{col}</option>
+                    ))}
+                  </HTMLSelect>
+                </Label>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                  <Button
+                    intent="primary"
+                    text="Confirm"
+                    onClick={handleConfirmColumnMapping}
+                    disabled={!clusterColumn || !geneColumn}
+                  />
+                  <Button
+                    text="Cancel"
+                    onClick={() => {
+                      setShowColumnMapping(false);
+                      setUploadedFileData(null);
+                    }}
+                  />
+                </div>
+              </Callout>
+            )}
+          </>
         )}
 
         {hasH5adMarkers && !uploadedMarkers && (
