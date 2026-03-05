@@ -35,6 +35,8 @@ import {
 import DimPlot from "../Plots/DimPlot";
 import MarkerPlot from "../Markers/index";
 import DotPlot from "../DotPlot";
+import TopMarker from "../TopMarker";
+import DifferentialExpression from "../DifferentialExpression";
 
 import { AppContext } from "../../context/AppContext";
 
@@ -289,8 +291,15 @@ export function ExplorerMode() {
 
   // EXPLORE dataset: files are imported into Kana
   useEffect(() => {
+    console.log("[ExploreMode] EXPLORE useEffect triggered");
+    console.log("[ExploreMode] wasmInitialized:", wasmInitialized);
+    console.log("[ExploreMode] exploreFiles:", exploreFiles);
+
     if (wasmInitialized) {
       if (exploreFiles.files != null) {
+        console.log("[ExploreMode] Posting EXPLORE message to worker");
+        console.log("[ExploreMode] Files:", Object.keys(exploreFiles.files));
+
         scranWorker.postMessage({
           type: "EXPLORE",
           payload: {
@@ -300,7 +309,11 @@ export function ExplorerMode() {
 
         add_to_logs("info", `--- Analyis started---`);
         setAllLoaders();
+      } else {
+        console.log("[ExploreMode] exploreFiles.files is null");
       }
+    } else {
+      console.log("[ExploreMode] WASM not initialized yet");
     }
   }, [exploreFiles, wasmInitialized]);
 
@@ -1228,6 +1241,78 @@ export function ExplorerMode() {
             <Divider />
             <div
               className={
+                showPanel === "topmarker" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Display top marker genes per cluster"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "topmarker" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"heat-grid"}
+                    onClick={() => setShowPanel("topmarker")}
+                    intent={showPanel === "topmarker" ? "primary" : "none"}
+                    disabled={selectedRedDim === null}
+                  ></Button>
+                  <span
+                    onClick={() => selectedRedDim !== null && setShowPanel("topmarker")}
+                    style={{
+                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
+                      color: showPanel === "topmarker" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                    }}
+                  >
+                    TOPMARKER
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
+                showPanel === "de-analysis" ? "item-sidebar-intent" : "item-sidebar"
+              }
+            >
+              <Tooltip2
+                className={popclass.TOOLTIP2_INDICATOR}
+                content="Differential expression analysis"
+                minimal={false}
+                placement={"right"}
+                intent={showPanel === "de-analysis" ? "primary" : ""}
+              >
+                <div className="item-button-group">
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"comparison"}
+                    onClick={() => setShowPanel("de-analysis")}
+                    intent={showPanel === "de-analysis" ? "primary" : "none"}
+                    disabled={selectedRedDim === null}
+                  ></Button>
+                  <span
+                    onClick={() => selectedRedDim !== null && setShowPanel("de-analysis")}
+                    style={{
+                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
+                      color: showPanel === "de-analysis" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                    }}
+                  >
+                    DE
+                  </span>
+                </div>
+              </Tooltip2>
+            </div>
+            <Divider />
+            <div
+              className={
                 showPanel === "subcluster" ? "item-sidebar-intent" : "item-sidebar"
               }
             >
@@ -1359,7 +1444,7 @@ export function ExplorerMode() {
           </div>
         </div>
         <div className="App-body">
-          {showPanel === "explore" && (
+          <div style={{ display: showPanel === "explore" ? "block" : "none" }}>
             <ResizeSensor onResize={handleResize}>
               {clusterAnnotationCollapsed ? (
                 <div className="explore-single-pane">
@@ -1528,7 +1613,7 @@ export function ExplorerMode() {
               </SplitPane>
               )}
             </ResizeSensor>
-          )}
+          </div>
           {(showPanel === null || showPanel === undefined) && (
             <div className="frontpage">
               <div style={{ textAlign: "left", alignItems: "flex-start" }}>
@@ -1572,6 +1657,18 @@ export function ExplorerMode() {
             <DotPlot
               scranWorker={scranWorker}
               selectedModality={selectedModality}
+            />
+          </div>
+          <div style={{ display: showPanel === "topmarker" ? "block" : "none" }}>
+            <TopMarker
+              scranWorker={scranWorker}
+              selectedModality={selectedModality}
+            />
+          </div>
+          <div style={{ display: showPanel === "de-analysis" ? "block" : "none" }}>
+            <DifferentialExpression
+              scranWorker={scranWorker}
+              inputData={inputData}
             />
           </div>
           <div style={{ display: showPanel === "subcluster" ? "block" : "none" }}>

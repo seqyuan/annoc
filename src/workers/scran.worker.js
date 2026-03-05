@@ -891,6 +891,81 @@ onmessage = function (msg) {
         console.error(err);
         postError(type, err, fatal);
       });
+  } else if (type === "computeDE") {
+    loaded
+      .then((x) => {
+        let rank_type = payload.rank_type || "cohen-min";
+        let modality = payload.modality || "RNA";
+        let annotation = payload.annotation;
+        let target = payload.target;
+        let compareMode = payload.compareMode; // "vsAll", "vsOne", "vsMultiple"
+        let compareGroups = payload.compareGroups; // array of group names
+
+        let resp;
+        let raw_res;
+        let annotation_vec = scran.factorize(getAnnotation(annotation));
+        let mds = getMarkerStandAloneForAnnot(annotation, annotation_vec);
+        let target_idx = annotation_vec.levels.indexOf(target);
+
+        if (compareMode === "vsAll") {
+          // One vs Rest: use fetchResults
+          raw_res = mds.fetchResults()[modality];
+          resp = bakana.formatMarkerResults(raw_res, target_idx, rank_type);
+        } else if (compareMode === "vsOne") {
+          // One vs One: use computeVersus
+          let ref_idx = annotation_vec.levels.indexOf(compareGroups[0]);
+          raw_res = mds.computeVersus(target_idx, ref_idx);
+          resp = bakana.formatMarkerResults(
+            raw_res.results[modality],
+            raw_res.left,
+            rank_type
+          );
+        } else if (compareMode === "vsMultiple") {
+          // One vs Multiple: merge selected groups into a virtual group
+          let target_cells = [];
+          let ref_cells = [];
+          let anno_array = getAnnotation(annotation);
+
+          for (let i = 0; i < anno_array.length; i++) {
+            if (anno_array[i] === target) {
+              target_cells.push(i);
+            } else if (compareGroups.includes(anno_array[i])) {
+              ref_cells.push(i);
+            }
+          }
+
+          // Create a binary grouping: 0 = reference, 1 = target
+          let binary_groups = new Int32Array(anno_array.length);
+          binary_groups.fill(-1); // -1 for cells not in either group
+          for (let idx of target_cells) {
+            binary_groups[idx] = 1;
+          }
+          for (let idx of ref_cells) {
+            binary_groups[idx] = 0;
+          }
+
+          // Use scran.scoreMarkers directly with binary grouping
+          let mat = superstate.inputs.fetchCountMatrix();
+          raw_res = scran.scoreMarkers(mat, binary_groups, { numberOfThreads: 4 });
+          resp = bakana.formatMarkerResults(raw_res, 1, rank_type);
+          raw_res.free();
+        }
+
+        var transferrable = [];
+        extractBuffers(resp, transferrable);
+        postMessage(
+          {
+            type: "computeDE_DATA",
+            resp: resp,
+            msg: "Success: COMPUTE_DE done",
+          },
+          transferrable
+        );
+      })
+      .catch((err) => {
+        console.error(err);
+        postError(type, err, fatal);
+      });
   } else if (type === "getGeneExpression") {
     loaded
       .then((x) => {
