@@ -6,7 +6,6 @@ import {
   InputGroup,
   Callout,
   Spinner,
-  Checkbox,
   NumericInput,
   Icon,
 } from "@blueprintjs/core";
@@ -38,8 +37,8 @@ const Subcluster = (props) => {
     useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
-  const [selectedClusters, setSelectedClusters] = useState(new Set());
-  const [resolution, setResolution] = useState(0.25);
+  const [selectedCluster, setSelectedCluster] = useState(null);
+  const [resolution, setResolution] = useState(0.1);
   const [algorithm, setAlgorithm] = useState("multilevel");
   const [k, setK] = useState(20);
   const [scheme, setScheme] = useState("rank");
@@ -80,12 +79,7 @@ const Subcluster = (props) => {
   })();
 
   const toggleCluster = (cluster) => {
-    setSelectedClusters((prev) => {
-      const next = new Set(prev);
-      if (next.has(cluster)) next.delete(cluster);
-      else next.add(cluster);
-      return next;
-    });
+    setSelectedCluster(cluster);
   };
 
   const handleFindSubcluster = () => {
@@ -93,8 +87,8 @@ const Subcluster = (props) => {
       setError("Please choose an annotation.");
       return;
     }
-    if (selectedClusters.size === 0) {
-      setError("Please select at least one cluster to subcluster.");
+    if (!selectedCluster) {
+      setError("Please select a cluster to subcluster.");
       return;
     }
     if (!newColumnName.trim()) {
@@ -110,7 +104,7 @@ const Subcluster = (props) => {
         type: "findSubcluster",
         payload: {
           annotation: selectedAnnotation,
-          selectedClusters: Array.from(selectedClusters),
+          selectedClusters: [selectedCluster],
           newColumnName: newColumnName.trim(),
           parameters: {
             k,
@@ -162,7 +156,7 @@ const Subcluster = (props) => {
             value={selectedAnnotation || ""}
             onChange={(e) => {
               setSelectedAnnotation(e.target.value);
-              setSelectedClusters(new Set());
+              setSelectedCluster(null);
             }}
             fill
             disabled={loading}
@@ -177,21 +171,41 @@ const Subcluster = (props) => {
 
         {selectedAnnotation && (
           <Label>
-            Clusters to subcluster (select one or more)
-            <div className="subcluster-checkboxes">
+            Clusters to subcluster (select one)
+            <div style={{
+              maxHeight: "200px",
+              overflowY: "auto",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              padding: "10px",
+              backgroundColor: "white"
+            }}>
               {levels.length === 0 && !annotationObj[selectedAnnotation] && (
                 <Callout intent="primary" icon={<Spinner size={16} />}>
                   Loading annotation...
                 </Callout>
               )}
               {levels.map((level) => (
-                <Checkbox
+                <label
                   key={String(level)}
-                  checked={selectedClusters.has(String(level))}
-                  onChange={() => toggleCluster(String(level))}
-                  label={String(level)}
-                  disabled={loading}
-                />
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "5px 0",
+                    cursor: "pointer"
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="subcluster-selection"
+                    value={String(level)}
+                    checked={selectedCluster === String(level)}
+                    onChange={(e) => setSelectedCluster(e.target.value)}
+                    disabled={loading}
+                    style={{ marginRight: "8px" }}
+                  />
+                  {String(level)}
+                </label>
               ))}
             </div>
           </Label>
@@ -289,7 +303,7 @@ const Subcluster = (props) => {
             intent="primary"
             text="Find subcluster"
             onClick={handleFindSubcluster}
-            disabled={loading || selectedClusters.size === 0 || !newColumnName.trim()}
+            disabled={loading || !selectedCluster || !newColumnName.trim()}
             icon="git-branch"
           />
         </div>
