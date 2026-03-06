@@ -29,3 +29,6 @@ yarn-error.log*
 # Service runtime files
 server.pid
 server.log
+*.out
+*.sh.o
+*.sh.e
