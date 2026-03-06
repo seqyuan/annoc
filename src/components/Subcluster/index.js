@@ -12,7 +12,7 @@ import {
 import { Tooltip2 } from "@blueprintjs/popover2";
 
 import { AppContext } from "../../context/AppContext";
-import { getSuppliedCols, getComputedCols } from "../../utils/utils";
+import { getSuppliedCols, getComputedCols, getAnnotationLevels } from "../../utils/utils";
 import "./index.css";
 
 const ALGORITHMS = ["multilevel", "leiden", "walktrap"];
@@ -33,10 +33,11 @@ const HELP = {
 };
 
 const Subcluster = (props) => {
-  const { annotationCols, annotationObj, setAnnotationCols, setAnnotationObj, setReqAnnotation } =
+  const { annotationCols, annotationObj, setAnnotationCols, setAnnotationObj, setReqAnnotation, globalClusterOrder } =
     useContext(AppContext);
 
-  const [selectedAnnotation, setSelectedAnnotation] = useState(null);
+  // Use selectedAnnotation from props (passed from ClusterAnnotation)
+  const selectedAnnotation = props.selectedAnnotation;
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [resolution, setResolution] = useState(0.1);
   const [algorithm, setAlgorithm] = useState("multilevel");
@@ -49,21 +50,7 @@ const Subcluster = (props) => {
   const [successMsg, setSuccessMsg] = useState(null);
   const listenerRef = useRef(null);
 
-  const allCols = annotationCols
-    ? [...getSuppliedCols(annotationCols), ...getComputedCols(annotationCols)]
-    : [];
-
-  useEffect(() => {
-    if (!annotationCols || allCols.length === 0) return;
-    if (selectedAnnotation === null) {
-      let defaultCol = allCols[0];
-      if (allCols.includes("seurat_clusters")) defaultCol = "seurat_clusters";
-      else if (allCols.includes("clusters")) defaultCol = "clusters";
-      else if (allCols.includes("cluster")) defaultCol = "cluster";
-      setSelectedAnnotation(defaultCol);
-    }
-  }, [annotationCols, allCols, selectedAnnotation]);
-
+  // Request annotation data if not loaded
   useEffect(() => {
     if (selectedAnnotation && !annotationObj[selectedAnnotation] && setReqAnnotation) {
       setReqAnnotation(selectedAnnotation);
@@ -73,9 +60,8 @@ const Subcluster = (props) => {
   const levels = (() => {
     if (!selectedAnnotation || !annotationObj[selectedAnnotation]) return [];
     const data = annotationObj[selectedAnnotation];
-    if (data.type === "array") return [...new Set(data.values)];
-    if (data.type === "factor") return data.levels || [];
-    return [];
+    const savedOrder = globalClusterOrder[selectedAnnotation];
+    return getAnnotationLevels(data, savedOrder);
   })();
 
   const toggleCluster = (cluster) => {
@@ -150,30 +136,11 @@ const Subcluster = (props) => {
   return (
     <div className="subcluster-container">
       <div className="subcluster-controls">
-        <Label>
-          Choose annotation
-          <HTMLSelect
-            value={selectedAnnotation || ""}
-            onChange={(e) => {
-              setSelectedAnnotation(e.target.value);
-              setSelectedCluster(null);
-            }}
-            fill
-            disabled={loading}
-          >
-            {allCols.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
-          </HTMLSelect>
-        </Label>
-
         {selectedAnnotation && (
           <Label>
             Clusters to subcluster (select one)
             <div style={{
-              maxHeight: "200px",
+              maxHeight: "90px",
               overflowY: "auto",
               border: "1px solid #ddd",
               borderRadius: "4px",

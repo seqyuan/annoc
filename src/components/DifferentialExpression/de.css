@@ -65,6 +65,11 @@
   background-color: white;
 }
 
+.de-group-selector.de-scrollable {
+  max-height: 90px; /* Approximately 3 rows */
+  overflow-y: auto;
+}
+
 .de-checkbox-label {
   display: flex;
   align-items: center;

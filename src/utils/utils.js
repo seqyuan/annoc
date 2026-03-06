@@ -110,6 +110,9 @@ export function generateUID(resource) {
     case "SummarizedExperiment":
       base += `::${resource.rds.name}::${resource.rds.lastModified}::${resource.rds.size}`;
       return utf8_to_b64(base);
+    case "Seurat":
+      base += `::${resource.rds.name}::${resource.rds.lastModified}::${resource.rds.size}`;
+      return utf8_to_b64(base);
     case "MatrixMarket":
       for (let key of ["genes", "mtx", "annotations"]) {
         if (resource[key]) {
@@ -188,4 +191,39 @@ export const getSuppliedCols = (cols) => {
 
 export const resetApp = () => {
   window.location.reload();
+};
+
+// Smart sort for cluster labels: numeric if all values are numeric, otherwise lexicographic
+export const smartSortClusters = (clusters) => {
+  if (!clusters || clusters.length === 0) return [];
+
+  const allNumeric = clusters.every(c => {
+    const str = String(c).trim();
+    return str !== '' && !isNaN(Number(str));
+  });
+
+  if (allNumeric) {
+    return [...clusters].sort((a, b) => Number(String(a)) - Number(String(b)));
+  } else {
+    return [...clusters].sort();
+  }
+};
+
+// Extract and sort unique clusters from annotation data
+export const getAnnotationLevels = (annotationData, savedOrder = null) => {
+  if (!annotationData) return [];
+
+  let uniqueClusters = [];
+  if (annotationData.type === "array") {
+    uniqueClusters = [...new Set(annotationData.values)];
+  } else if (annotationData.type === "factor") {
+    uniqueClusters = annotationData.levels || [];
+  }
+
+  // Use saved order if available, otherwise apply smart sort
+  if (savedOrder) {
+    return savedOrder;
+  }
+
+  return smartSortClusters(uniqueClusters);
 };

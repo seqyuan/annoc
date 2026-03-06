@@ -1,7 +1,7 @@
 {
   "name": "annoc",
   "description": "AnnoC - Single-cell RNA-seq analysis in the browser",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "author": {
     "name": "Jayaram Kancherla",
     "email": "jayaram.kancherla@gmail.com",
@@ -43,6 +43,7 @@
     "epiviz.scatter.gl": "^0.0.5",
     "gesel": "^0.3.0",
     "hash-wasm": "^4.9.0",
+    "jspdf": "^4.1.0",
     "jszip": "^3.10.1",
     "randomcolor": "^0.6.2",
     "react": "^18.2.0",

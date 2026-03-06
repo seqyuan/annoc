@@ -9,6 +9,7 @@ import { generateUID } from "../../utils/utils";
 import { Tooltip2 } from "@blueprintjs/popover2";
 import { H5ADCard } from "./H5ADCard";
 import { SECard } from "./SECard";
+import { SeuratCard } from "./SeuratCard";
 
 export function LoadExplore({ setShowPanel, ...props }) {
   const {
@@ -34,26 +35,36 @@ export function LoadExplore({ setShowPanel, ...props }) {
   };
 
   const handleLoadDataset = () => {
+    console.log("[LoadExplore] handleLoadDataset called");
+    console.log("[LoadExplore] tmpLoadInputs:", tmpLoadInputs);
+    console.log("[LoadExplore] preInputFilesStatus:", preInputFilesStatus);
+
     let mapFiles = {};
     mapFiles[tmpLoadInputs.name] = tmpLoadInputs;
     mapFiles[tmpLoadInputs.name]["options"] = inputOptions;
 
     // Check if data has reduced dimensions
     const fileStatus = preInputFilesStatus?.[tmpLoadInputs.name];
+    console.log("[LoadExplore] fileStatus:", fileStatus);
+
     const hasReducedDims = fileStatus?.reduced_dimension_names &&
                           Array.isArray(fileStatus.reduced_dimension_names) &&
                           fileStatus.reduced_dimension_names.length > 0;
+
+    console.log("[LoadExplore] hasReducedDims:", hasReducedDims);
 
     let fInputFiles = { files: mapFiles };
 
     if (hasReducedDims) {
       // Has reduced dimensions - load into ExplorerMode for visualization only
+      console.log("[LoadExplore] Loading in explore mode");
       mapFiles[tmpLoadInputs.name].mode = "explore";
       setExploreFiles(fInputFiles);
       setShowPanel("explore");
     } else {
       // No reduced dimensions - need to run analysis
       // Mark for analysis mode
+      console.log("[LoadExplore] Loading in analysis mode");
       mapFiles[tmpLoadInputs.name].mode = "analysis";
 
       // Don't set batch and subset - let them be undefined
@@ -61,10 +72,12 @@ export function LoadExplore({ setShowPanel, ...props }) {
       setExploreFiles(fInputFiles);
       setShowPanel("explore");
     }
+    console.log("[LoadExplore] handleLoadDataset completed");
   };
 
   // Validate inputs
   useEffect(() => {
+    console.log("[LoadExplore] Validating inputs:", tmpLoadInputs);
     if (tmpLoadInputs) {
       let all_valid = true;
       let x = tmpLoadInputs;
@@ -76,9 +89,11 @@ export function LoadExplore({ setShowPanel, ...props }) {
         if (!x.rds) all_valid = false;
       }
 
+      console.log("[LoadExplore] Validation result:", all_valid);
       setTmpStatusValid(all_valid);
       if (all_valid) {
         tmpLoadInputs["uid"] = generateUID(tmpLoadInputs);
+        console.log("[LoadExplore] Generated UID:", tmpLoadInputs["uid"]);
         setExploreInputs([tmpLoadInputs]);
       }
     }
@@ -87,10 +102,12 @@ export function LoadExplore({ setShowPanel, ...props }) {
   // Preflight check
   useEffect(() => {
     if (Array.isArray(exploreInputs) && exploreInputs.length > 0) {
+      console.log("[LoadExplore] Triggering preflight for inputs:", exploreInputs);
       let mapFiles = {};
       for (const f of exploreInputs) {
         mapFiles[f.name] = f;
       }
+      console.log("[LoadExplore] Setting preInputFiles:", mapFiles);
       setPreInputFiles({ files: mapFiles });
     }
   }, [exploreInputs, setPreInputFiles]);
@@ -238,6 +255,14 @@ saveRDS(sce, "sce.rds")`}
                     inputs={exploreInputs} setInputs={setExploreInputs}
                     selectedFsetModality={props?.selectedFsetModality}
                     setSelectedFsetModality={props?.setSelectedFsetModality}
+                  />
+                );
+              } else if (x.format === "Seurat" && x.rds) {
+                return (
+                  <SeuratCard key={i} resource={x} index={i}
+                    preflight={preInputFilesStatus && preInputFilesStatus[x.name]}
+                    inputOpts={inputOptions} setInputOpts={setInputOptions}
+                    inputs={exploreInputs} setInputs={setExploreInputs}
                   />
                 );
               }

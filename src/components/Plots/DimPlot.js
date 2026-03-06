@@ -89,6 +89,12 @@ const DimPlot = (props) => {
   const [geneSearchQuery, setGeneSearchQuery] = useState("");
   const [selectedGeneIndex, setSelectedGeneIndex] = useState(null);
 
+  // selection renaming states
+  const [selectionNames, setSelectionNames] = useState({});
+  const [editingSelection, setEditingSelection] = useState(null);
+  const [editingName, setEditingName] = useState("");
+  const [hoveredSelection, setHoveredSelection] = useState(null);
+
   // const [resizeObserver, setResizeObserver] = useState(null);
 
   // const [resizeTimeout, setResizeTimeout] = useState(null);
@@ -690,6 +696,32 @@ const DimPlot = (props) => {
     scatterplot.clearSelection();
   };
 
+  // Handle selection rename
+  const handleStartEdit = (selectionKey) => {
+    setEditingSelection(selectionKey);
+    setEditingName(selectionNames[selectionKey] || `Selection ${selectionKey.replace("cs", "")}`);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingSelection && editingName.trim()) {
+      setSelectionNames({
+        ...selectionNames,
+        [editingSelection]: editingName.trim()
+      });
+    }
+    setEditingSelection(null);
+    setEditingName("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSelection(null);
+    setEditingName("");
+  };
+
+  const getSelectionDisplayName = (selectionKey) => {
+    return selectionNames[selectionKey] || `Selection ${selectionKey.replace("cs", "")}`;
+  };
+
   // hook to restore state
   useEffect(() => {
     if (props?.restoreState) {
@@ -1100,13 +1132,15 @@ const DimPlot = (props) => {
       )}
       <div className="dim-plot">
         {props?.selectedRedDim ? (
-          <div
-            ref={container}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-          ></div>
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            <div
+              ref={container}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+            ></div>
+          </div>
         ) : (
           "Choose an Embedding... or Embeddings are being computed..."
         )}
@@ -1312,6 +1346,9 @@ const DimPlot = (props) => {
                   >
                     <ul>
                       {Object.keys(props?.customSelection).map((x, i) => {
+                        const isEditing = editingSelection === x;
+                        const isHovered = hoveredSelection === x;
+
                         return (
                           <li
                             key={x}
@@ -1331,64 +1368,108 @@ const DimPlot = (props) => {
                                   ]
                                 : defaultColor,
                             }}
+                            onMouseEnter={() => setHoveredSelection(x)}
+                            onMouseLeave={() => setHoveredSelection(null)}
                           >
                             <div
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
                                 flexDirection: "row",
+                                gap: "4px",
                               }}
                             >
-                              <span
-                                style={{
-                                  alignSelf: "center",
-                                }}
-                                onClick={() => {
-                                  if (x === props?.clusHighlight) {
-                                    props?.setClusHighlight(null);
-                                    props?.setHighlightPoints(null);
-                                    props?.setClusHighlightLabel(null);
-                                  } else {
-                                    props?.setClusHighlight(x);
-                                    props?.setHighlightPoints(
-                                      props?.customSelection[x]
-                                    );
-                                    props?.setClusHighlightLabel(x);
-                                  }
-                                }}
-                              >
-                                Selection {x.replace("cs", "")}
-                              </span>
-                              <Icon
-                                size={10}
-                                icon="trash"
-                                style={{
-                                  paddingLeft: "2px",
-                                }}
-                                onClick={() => {
-                                  let tmpSel = {
-                                    ...props?.customSelection,
-                                  };
-                                  delete tmpSel[x];
-                                  props?.setCustomSelection(tmpSel);
+                              {isEditing ? (
+                                <InputGroup
+                                  small
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSaveEdit();
+                                    } else if (e.key === "Escape") {
+                                      handleCancelEdit();
+                                    }
+                                  }}
+                                  onBlur={handleSaveEdit}
+                                  autoFocus
+                                  style={{
+                                    width: "120px",
+                                  }}
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    alignSelf: "center",
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => {
+                                    if (x === props?.clusHighlight) {
+                                      props?.setClusHighlight(null);
+                                      props?.setHighlightPoints(null);
+                                      props?.setClusHighlightLabel(null);
+                                    } else {
+                                      props?.setClusHighlight(x);
+                                      props?.setHighlightPoints(
+                                        props?.customSelection[x]
+                                      );
+                                      props?.setClusHighlightLabel(getSelectionDisplayName(x));
+                                    }
+                                  }}
+                                  onDoubleClick={() => handleStartEdit(x)}
+                                >
+                                  {getSelectionDisplayName(x)}
+                                </span>
+                              )}
+                              {!isEditing && isHovered && (
+                                <Icon
+                                  size={10}
+                                  icon="edit"
+                                  style={{
+                                    cursor: "pointer",
+                                    opacity: 0.7,
+                                  }}
+                                  onClick={() => handleStartEdit(x)}
+                                />
+                              )}
+                              {!isEditing && (
+                                <Icon
+                                  size={10}
+                                  icon="trash"
+                                  style={{
+                                    cursor: "pointer",
+                                    opacity: isHovered ? 1 : 0.7,
+                                  }}
+                                  onClick={() => {
+                                    let tmpSel = {
+                                      ...props?.customSelection,
+                                    };
+                                    delete tmpSel[x];
+                                    props?.setCustomSelection(tmpSel);
 
-                                  if (props?.clusterColors) {
-                                    let tmpcolors = [...props?.clusterColors];
-                                    tmpcolors = tmpcolors.slice(
-                                      0,
-                                      tmpcolors.length - 1
-                                    );
-                                    props?.setClusterColors(tmpcolors);
-                                  }
+                                    // Also remove custom name
+                                    const newNames = { ...selectionNames };
+                                    delete newNames[x];
+                                    setSelectionNames(newNames);
 
-                                  props?.setDelCustomSelection(x);
+                                    if (props?.clusterColors) {
+                                      let tmpcolors = [...props?.clusterColors];
+                                      tmpcolors = tmpcolors.slice(
+                                        0,
+                                        tmpcolors.length - 1
+                                      );
+                                      props?.setClusterColors(tmpcolors);
+                                    }
 
-                                  if (props?.clusHighlight === x) {
-                                    props?.setClusHighlight(null);
-                                    props?.setClusHighlightLabel(null);
-                                  }
-                                }}
-                              ></Icon>
+                                    props?.setDelCustomSelection(x);
+
+                                    if (props?.clusHighlight === x) {
+                                      props?.setClusHighlight(null);
+                                      props?.setClusHighlightLabel(null);
+                                    }
+                                  }}
+                                />
+                              )}
                             </div>
                           </li>
                         );

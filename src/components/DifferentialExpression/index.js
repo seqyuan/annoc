@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AppContext } from "../../context/AppContext";
+import { getAnnotationLevels } from "../../utils/utils";
 import VolcanoPlot from "./VolcanoPlot";
 import DETable from "./DETable";
 import "./de.css";
 
 export default function DifferentialExpression({ scranWorker, inputData }) {
-  const { annotationCols, annotationObj, setReqAnnotation } = useContext(AppContext);
+  const { annotationCols, annotationObj, setReqAnnotation, globalClusterOrder } = useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState("");
   const [targetGroups, setTargetGroups] = useState([]);
-  const [compareMode, setCompareMode] = useState("vsAll");
   const [compareGroups, setCompareGroups] = useState([]);
-  const [rankType, setRankType] = useState("cohen-min");
+  const [rankType, setRankType] = useState("lfc-mean");
   const [modality, setModality] = useState("RNA");
 
   const [loading, setLoading] = useState(false);
@@ -47,13 +47,12 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
   const availableGroups = (() => {
     if (!selectedAnnotation || !annotationObj[selectedAnnotation]) return [];
     const data = annotationObj[selectedAnnotation];
-    if (data.type === "array") return [...new Set(data.values)].sort();
-    if (data.type === "factor") return data.levels || [];
-    return [];
+    const savedOrder = globalClusterOrder[selectedAnnotation];
+    return getAnnotationLevels(data, savedOrder);
   })();
 
   const handleRunDE = () => {
-    if (targetGroups.length === 0) return;
+    if (targetGroups.length === 0 || compareGroups.length === 0) return;
 
     setLoading(true);
     setResults(null);
@@ -63,8 +62,8 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
       payload: {
         annotation: selectedAnnotation,
         targetGroups: targetGroups,
-        compareMode,
-        compareGroups: compareMode === "vsAll" ? [] : compareGroups,
+        compareMode: "vsSelected",
+        compareGroups: compareGroups,
         rank_type: rankType,
         modality
       }
@@ -124,7 +123,7 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
 
         <div className="de-control-group">
           <label>Target Group(s):</label>
-          <div className="de-group-selector">
+          <div className="de-group-selector de-scrollable">
             {availableGroups.length === 0 && (
               <div style={{ padding: "8px", color: "#999" }}>Loading...</div>
             )}
@@ -142,55 +141,29 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
         </div>
 
         <div className="de-control-group">
-          <label>Compare Mode:</label>
-          <div className="de-radio-group">
-            <label>
-              <input
-                type="radio"
-                value="vsAll"
-                checked={compareMode === "vsAll"}
-                onChange={(e) => setCompareMode(e.target.value)}
-              />
-              vs All Others
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="vsSelected"
-                checked={compareMode === "vsSelected"}
-                onChange={(e) => setCompareMode(e.target.value)}
-              />
-              vs Selected Groups
-            </label>
+          <label>Reference Group(s):</label>
+          <div className="de-group-selector de-scrollable">
+            {availableGroups
+              .filter(g => !targetGroups.includes(g))
+              .map(group => (
+                <label key={group} className="de-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={compareGroups.includes(group)}
+                    onChange={() => handleCompareGroupToggle(group)}
+                  />
+                  {group}
+                </label>
+              ))}
           </div>
         </div>
-
-        {compareMode !== "vsAll" && (
-          <div className="de-control-group">
-            <label>Reference Group(s):</label>
-            <div className="de-group-selector">
-              {availableGroups
-                .filter(g => !targetGroups.includes(g))
-                .map(group => (
-                  <label key={group} className="de-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={compareGroups.includes(group)}
-                      onChange={() => handleCompareGroupToggle(group)}
-                    />
-                    {group}
-                  </label>
-                ))}
-            </div>
-          </div>
-        )}
 
         <div className="de-control-group">
           <label>Rank Type:</label>
           <select value={rankType} onChange={(e) => setRankType(e.target.value)}>
+            <option value="lfc-mean">LFC (mean)</option>
             <option value="cohen-min">Cohen's d (min)</option>
             <option value="cohen-mean">Cohen's d (mean)</option>
-            <option value="lfc-mean">LFC (mean)</option>
             <option value="auc-mean">AUC (mean)</option>
           </select>
         </div>
@@ -198,7 +171,7 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
         <button
           className="de-run-button"
           onClick={handleRunDE}
-          disabled={loading || !targetGroup || (compareMode !== "vsAll" && compareGroups.length === 0)}
+          disabled={loading || targetGroups.length === 0 || compareGroups.length === 0}
         >
           {loading ? "Computing..." : "Run DE Analysis"}
         </button>
@@ -219,8 +192,7 @@ export default function DifferentialExpression({ scranWorker, inputData }) {
               filters={filters}
               setFilters={setFilters}
               highlightedGene={highlightedGene}
-              targetGroup={targetGroup}
-              compareMode={compareMode}
+              targetGroups={targetGroups}
               compareGroups={compareGroups}
             />
           </>

@@ -18,7 +18,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 
 import { AppContext } from "../../context/AppContext";
-import { getSuppliedCols, getComputedCols } from "../../utils/utils";
+import { getSuppliedCols, getComputedCols, getAnnotationLevels } from "../../utils/utils";
 import ClusterAnnotation from "../ClusterAnnotation";
 import "./dotplot.css";
 
@@ -800,7 +800,7 @@ const DotPlot = (props) => {
       <div className="dotplot-left-panel">
         <div className="dotplot-controls">
           <Label>
-            Group by:
+            Choose annotation:
             <HTMLSelect
               value={selectedAnnotation || ""}
               onChange={(e) => setSelectedAnnotation(e.target.value)}
@@ -969,30 +969,6 @@ B cells,MS4A1`}
               onClick={handleGeneratePlot}
               disabled={loading || !selectedAnnotation}
               icon="chart"
-            />
-            <Button
-              text="Clear"
-              onClick={() => {
-                setGeneInput("");
-                setGeneGroups([]);
-                setGroupRanges([]);
-                setDotplotData(null);
-                setError(null);
-                setValidGenes([]);
-                setInvalidGenes([]);
-                setSelectedClassicMarkers([]);
-                setMarkerSpecies("human");
-              }}
-              disabled={loading}
-              style={{ marginLeft: "10px" }}
-            />
-            <Button
-              text="SaveFig"
-              onClick={handleSavePDF}
-              disabled={!dotplotData}
-              icon="download"
-              style={{ marginLeft: "10px" }}
-              title="Save plot as PDF"
             />
           </div>
 

@@ -7,6 +7,18 @@ import reportWebVitals from "./reportWebVitals";
 
 import AppContext from "./context/AppContext";
 
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('[Global Error Handler] Uncaught error:', event.error);
+  console.error('[Global Error Handler] Message:', event.message);
+  console.error('[Global Error Handler] Filename:', event.filename);
+  console.error('[Global Error Handler] Line:', event.lineno, 'Column:', event.colno);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Global Error Handler] Unhandled promise rejection:', event.reason);
+});
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
 root.render(

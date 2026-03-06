@@ -30,8 +30,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { AppContext } from "../../context/AppContext";
-import { getSuppliedCols } from "../../utils/utils";
+import { getSuppliedCols, getAnnotationLevels } from "../../utils/utils";
 import { generateColors } from "../Plots/colors";
+import Subcluster from "../Subcluster";
 import "./annotation.css";
 
 // Sortable row component
@@ -487,29 +488,10 @@ const ClusterAnnotation = (props) => {
   useEffect(() => {
     if (selectedMetadata && annotationObj[selectedMetadata]) {
       const data = annotationObj[selectedMetadata];
-      let uniqueClusters = [];
 
-      if (data.type === "array") {
-        uniqueClusters = [...new Set(data.values)];
-      } else if (data.type === "factor") {
-        uniqueClusters = data.levels;
-      }
-
-      // Smart sort: if all values are numeric, sort numerically instead of lexicographically
-      // This ensures "0", "1", "2", "10", "11" instead of "0", "1", "10", "11", "2"
-      const allNumeric = uniqueClusters.every(c => {
-        const str = String(c).trim();
-        return str !== '' && !isNaN(Number(str));
-      });
-      if (allNumeric) {
-        uniqueClusters = [...uniqueClusters].sort((a, b) => Number(String(a)) - Number(String(b)));
-      }
-
-      // Check if we have a saved order for this annotation
+      // Use the new utility function to get sorted levels
       const savedOrder = globalClusterOrder[selectedMetadata];
-      if (savedOrder) {
-        uniqueClusters = savedOrder;
-      }
+      const uniqueClusters = getAnnotationLevels(data, savedOrder);
 
       // Check if we have saved annotations
       const savedAnnotations = clusterAnnotations[annotationColumnName];
@@ -539,6 +521,37 @@ const ClusterAnnotation = (props) => {
       props.setReqAnnotation?.(statCelltype);
     }
   }, [statGroup, statCelltype, annotationObj, onlyAnnotation]);
+
+  // Listen for export response from worker
+  useEffect(() => {
+    if (!props.scranWorker) return;
+
+    const handleMessage = (event) => {
+      // Early exit for irrelevant messages
+      if (event.data?.type !== "exportCellAnnotations_DATA") return;
+
+      const { resp } = event.data;
+      if (!resp?.success || !resp?.csvContent) {
+        console.error("Failed to export annotations:", resp?.message || "Unknown error");
+        return;
+      }
+
+      const blob = new Blob([resp.csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = resp.filename || "cell_annotations.csv";
+      link.click();
+
+      // Delay revocation to allow download to start
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    };
+
+    props.scranWorker.addEventListener("message", handleMessage);
+    return () => {
+      props.scranWorker.removeEventListener("message", handleMessage);
+    };
+  }, [props.scranWorker]);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -642,21 +655,23 @@ const ClusterAnnotation = (props) => {
       return;
     }
 
-    const columnName = annotationColumnName || "celltype";
-    const csvContent = [
-      `cluster,${columnName}`,
-      ...clusterList.map((item) => `${item.cluster},${item.annotation || ""}`),
-    ].join("\n");
+    // Request cell-level export from worker
+    if (props.scranWorker) {
+      const columnName = annotationColumnName || "celltype";
+      const clusterAnnotationMap = {};
+      clusterList.forEach((item) => {
+        clusterAnnotationMap[item.cluster] = item.annotation || "";
+      });
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${columnName}_annotations.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      props.scranWorker.postMessage({
+        type: "exportCellAnnotations",
+        payload: {
+          sourceAnnotation: selectedMetadata,
+          clusterAnnotationMap,
+          columnName,
+        },
+      });
+    }
   };
 
   const nonNumericCols = getNonNumericColumns();
@@ -1031,6 +1046,17 @@ const ClusterAnnotation = (props) => {
                   </Callout>
                 )}
               </>
+            }
+          />
+          <Tab
+            id="subcluster"
+            title="Subcluster"
+            panel={
+              <Subcluster
+                scranWorker={props.scranWorker}
+                setReqAnnotation={props.setReqAnnotation}
+                selectedAnnotation={selectedMetadata}
+              />
             }
           />
         </Tabs>

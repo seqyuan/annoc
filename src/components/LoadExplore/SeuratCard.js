@@ -69,7 +69,7 @@ export function SeuratCard({
       <div className={dsMeta ? "" : "bp4-skeleton"}>
         <p>
           This <strong>Seurat</strong> dataset contains{" "}
-          {dsMeta && dsMeta.cells} cells
+          {dsMeta && dsMeta.cells_count} cells
           {dsMeta && dsMeta.assays && dsMeta.assays.length > 0 && (
             <span>
               {" "}with assays: <strong>{dsMeta.assays.join(", ")}</strong>

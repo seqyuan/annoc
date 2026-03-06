@@ -5,6 +5,7 @@
   flex-direction: row;
   gap: 20px;
   overflow: hidden;
+  position: relative;
 }
 
 .dotplot-left-panel {
@@ -155,4 +156,22 @@
 .dotplot-canvas {
   display: block;
   margin: 0 auto;
+}
+
+/* Floating annotation panel toggle button */
+.dotplot-annotation-toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Floating panel styles */
+.dotplot-floating-panel {
+  border: 1px solid #ddd;
+}
+
+.dotplot-floating-panel .floating-panel-header {
+  font-size: 14px;
 }

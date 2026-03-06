@@ -4,126 +4,99 @@ import {
   HTMLSelect,
   Label,
   Callout,
-  Spinner,
   FileInput,
   NumericInput,
   Icon,
+  RangeSlider,
 } from "@blueprintjs/core";
-import { Popover2, Tooltip2 } from "@blueprintjs/popover2";
-import * as d3 from "d3";
+import { Tooltip2 } from "@blueprintjs/popover2";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
 
 import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getComputedCols } from "../../utils/utils";
 import "./topmarker.css";
 
-// Parse uploaded marker file - return full table with headers
+// Parse CSV/TSV
 function parseCsvOrTxtFull(text) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  const lines = text.split(/\r?\n/).filter(line => line.trim());
   if (lines.length === 0) return { headers: [], rows: [] };
 
-  const firstLine = lines[0].split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
-  const headers = firstLine;
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  let headerCells = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
 
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(/[\t,]/).map((c) => c.trim().replace(/^["']|["']$/g, ""));
-    if (cells.length === headers.length) {
-      const row = {};
-      headers.forEach((h, idx) => {
-        row[h] = cells[idx];
-      });
-      rows.push(row);
+  // Detect row names column (data has one more column than header)
+  if (lines.length > 1) {
+    const sampleDataCells = lines[1].split(delimiter);
+    if (sampleDataCells.length === headerCells.length + 1) {
+      headerCells = ['rowname', ...headerCells];
     }
   }
 
+  const headers = headerCells;
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(delimiter).map(c => c.trim().replace(/^["']|["']$/g, ''));
+    if (cells.length >= headers.length) {
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = cells[idx]; });
+      rows.push(row);
+    }
+  }
   return { headers, rows };
 }
 
-function parseXlsxBufferFull(ab) {
-  const wb = XLSX.read(ab, { type: "array" });
+// Parse XLSX
+function parseXlsxBufferFull(buffer) {
+  const wb = XLSX.read(buffer, { type: "array" });
   const firstSheet = wb.SheetNames[0];
-  const ws = wb.Sheets[firstSheet];
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  if (!firstSheet) return { headers: [], rows: [] };
 
-  if (data.length === 0) return { headers: [], rows: [] };
+  const sheet = wb.Sheets[firstSheet];
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (jsonData.length === 0) return { headers: [], rows: [] };
 
-  const headers = data[0].map(h => String(h || "").trim());
+  const headers = jsonData[0].map(h => String(h).trim());
   const rows = [];
-
-  for (let i = 1; i < data.length; i++) {
+  for (let i = 1; i < jsonData.length; i++) {
     const row = {};
-    headers.forEach((h, idx) => {
-      row[h] = data[i][idx] != null ? String(data[i][idx]).trim() : "";
-    });
-    if (Object.values(row).some(v => v)) {
-      rows.push(row);
-    }
+    headers.forEach((h, idx) => { row[h] = String(jsonData[i][idx] || "").trim(); });
+    rows.push(row);
   }
-
   return { headers, rows };
 }
 
 const TopMarker = (props) => {
-  const { annotationCols, annotationObj, setReqAnnotation } = useContext(AppContext);
+  const { annotationCols } = useContext(AppContext);
 
-  const [selectedAnnotation, setSelectedAnnotation] = useState(null);
-  const [topN, setTopN] = useState(7);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [dotplotData, setDotplotData] = useState(null);
-  const [uploadedMarkers, setUploadedMarkers] = useState(null);
-  const [hasH5adMarkers, setHasH5adMarkers] = useState(false);
-  const canvasRef = useRef(null);
-  const listenerRef = useRef(null);
-
-  // File upload column mapping states
+  // Upload state
   const [uploadedFileData, setUploadedFileData] = useState(null);
   const [fileColumns, setFileColumns] = useState([]);
+
+  // Column selection
   const [clusterColumn, setClusterColumn] = useState("");
   const [geneColumn, setGeneColumn] = useState("");
-  const [showColumnMapping, setShowColumnMapping] = useState(false);
+  const [markerData, setMarkerData] = useState(null);
 
-  // Gene filter states
-  const [filterCluster, setFilterCluster] = useState(null);
-  const [filterTopN, setFilterTopN] = useState(10);
-  const [filterConditions, setFilterConditions] = useState([
-    { field: "means.lfc", operator: ">", value: 0.5 }
-  ]);
+  // Group by
+  const [groupByColumn, setGroupByColumn] = useState("");
+  const [availableGroups, setAvailableGroups] = useState([]);
+  const [selectedGroups, setSelectedGroups] = useState([]);
+
+  // Filters
+  const [topN, setTopN] = useState(3);
+  const [filterConditions, setFilterConditions] = useState([]);
+  const [columnRanges, setColumnRanges] = useState({});
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
+
+  // Results
+  const [error, setError] = useState(null);
   const [filteredGenes, setFilteredGenes] = useState([]);
-  const [filterLoading, setFilterLoading] = useState(false);
 
-  const allCols = annotationCols
-    ? [...getSuppliedCols(annotationCols), ...getComputedCols(annotationCols)]
-    : [];
+  // Table sorting
+  const [sortColumn, setSortColumn] = useState("");
+  const [sortDirection, setSortDirection] = useState("asc");
 
-  useEffect(() => {
-    if (!annotationCols || allCols.length === 0) return;
-    if (selectedAnnotation === null) {
-      let defaultCol = allCols[0];
-      if (allCols.includes("seurat_clusters")) defaultCol = "seurat_clusters";
-      else if (allCols.includes("clusters")) defaultCol = "clusters";
-      else if (allCols.includes("cluster")) defaultCol = "cluster";
-      setSelectedAnnotation(defaultCol);
-    }
-  }, [annotationCols, allCols, selectedAnnotation]);
-
-  useEffect(() => {
-    if (selectedAnnotation && !annotationObj[selectedAnnotation] && setReqAnnotation) {
-      setReqAnnotation(selectedAnnotation);
-    }
-  }, [selectedAnnotation, annotationObj, setReqAnnotation]);
-
-  // Check if H5AD has markers in uns
-  useEffect(() => {
-    if (!props.scranWorker) return;
-
-    props.scranWorker.postMessage({
-      type: "checkH5adMarkers",
-    });
-  }, [props.scranWorker]);
-
+  // ---- File upload ----
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -133,7 +106,6 @@ const TopMarker = (props) => {
       try {
         const content = e.target.result;
         let parsed;
-
         if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
           parsed = parseXlsxBufferFull(content);
         } else {
@@ -148,577 +120,355 @@ const TopMarker = (props) => {
 
         setUploadedFileData(parsed);
         setFileColumns(parsed.headers);
+        setFiltersInitialized(false);
 
         // Auto-detect columns
         const lowerHeaders = parsed.headers.map(h => h.toLowerCase());
 
-        // Detect cluster column
+        // Cluster column
         const clusterIdx = lowerHeaders.findIndex(h =>
           h.includes("cluster") || h.includes("group") || h === "celltype"
         );
         if (clusterIdx !== -1) setClusterColumn(parsed.headers[clusterIdx]);
 
-        // Detect gene column
-        const geneIdx = lowerHeaders.findIndex(h =>
-          h.includes("gene") || h.includes("name") || h === "names"
-        );
+        // Gene column: prioritize exact "gene" (Seurat) or "names" (Scanpy)
+        let geneIdx = lowerHeaders.findIndex(h => h === "gene" || h === "names");
+        if (geneIdx === -1) geneIdx = lowerHeaders.findIndex(h => h.includes("gene") || h.includes("name"));
         if (geneIdx !== -1) setGeneColumn(parsed.headers[geneIdx]);
 
-        setShowColumnMapping(true);
         setError(null);
       } catch (err) {
         setError(`Failed to parse file: ${err.message}`);
       }
     };
-
+    reader.onerror = () => setError("Failed to read file");
     reader.readAsArrayBuffer(file);
   };
 
-  const handleConfirmColumnMapping = () => {
-    if (!clusterColumn || !geneColumn) {
-      setError("Please select both cluster and gene columns");
-      return;
-    }
+  // ---- Auto-process when columns selected ----
+  useEffect(() => {
+    if (!uploadedFileData || !clusterColumn || !geneColumn) return;
 
-    // Group by cluster
-    const markersByCluster = {};
-    uploadedFileData.rows.forEach(row => {
-      const cluster = row[clusterColumn];
-      const gene = row[geneColumn];
-      if (cluster && gene) {
-        if (!markersByCluster[cluster]) markersByCluster[cluster] = [];
-        markersByCluster[cluster].push(gene);
+    const processedData = {
+      headers: uploadedFileData.headers,
+      rows: uploadedFileData.rows,
+      clusterColumn,
+      geneColumn
+    };
+    setMarkerData(processedData);
+
+    // Calculate ranges for numeric columns
+    const ranges = {};
+    uploadedFileData.headers.forEach(header => {
+      if (header === clusterColumn || header === geneColumn) return;
+      const values = uploadedFileData.rows.map(row => parseFloat(row[header])).filter(v => !isNaN(v));
+      if (values.length > 0) {
+        ranges[header] = { min: Math.min(...values), max: Math.max(...values) };
       }
     });
+    setColumnRanges(ranges);
 
-    setUploadedMarkers(markersByCluster);
-    setShowColumnMapping(false);
-    setError(null);
-  };
+    setGroupByColumn(clusterColumn);
+    const groups = [...new Set(uploadedFileData.rows.map(row => row[clusterColumn]))].filter(Boolean);
+    setAvailableGroups(groups);
+    setSelectedGroups(groups);
 
-  const handleGeneratePlot = () => {
-    if (!selectedAnnotation) {
-      setError("Please select an annotation");
-      return;
+    // Default filters (only once per file)
+    if (!filtersInitialized) {
+      const defaultFilters = [];
+      const lowerHeaders = uploadedFileData.headers.map(h => h.toLowerCase());
+
+      const log2fcIdx = lowerHeaders.findIndex(h =>
+        h.includes("log2fc") || h.includes("avg_log2fc") || h.includes("logfc")
+      );
+      if (log2fcIdx !== -1 && ranges[uploadedFileData.headers[log2fcIdx]]) {
+        const colName = uploadedFileData.headers[log2fcIdx];
+        defaultFilters.push({ field: colName, min: 2, max: ranges[colName].max });
+      }
+
+      const pct1Idx = lowerHeaders.findIndex(h =>
+        h === "pct.1" || h.includes("pct_1") || h.includes("pct1")
+      );
+      if (pct1Idx !== -1 && ranges[uploadedFileData.headers[pct1Idx]]) {
+        const colName = uploadedFileData.headers[pct1Idx];
+        defaultFilters.push({ field: colName, min: 0.25, max: ranges[colName].max });
+      }
+
+      setFilterConditions(defaultFilters);
+      setFiltersInitialized(true);
     }
-
     setError(null);
-    setLoading(true);
+  }, [uploadedFileData, clusterColumn, geneColumn]);
 
-    if (props.scranWorker) {
-      props.scranWorker.postMessage({
-        type: "generateTopMarkerDotplot",
-        payload: {
-          annotation: selectedAnnotation,
-          topN,
-          uploadedMarkers,
-          useH5adMarkers: hasH5adMarkers && !uploadedMarkers,
-        },
-      });
+  // ---- Sorting ----
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
     } else {
-      setLoading(false);
-      setError("Worker not available");
+      setSortColumn(column);
+      setSortDirection("asc");
     }
   };
 
-  const handleFilterGenes = () => {
-    if (!filterCluster || !selectedAnnotation) {
-      setError("Please select annotation and cluster");
-      return;
-    }
+  const getSortedData = () => {
+    if (!markerData || !sortColumn) return markerData?.rows || [];
+    return [...markerData.rows].sort((a, b) => {
+      const aNum = parseFloat(a[sortColumn]), bNum = parseFloat(b[sortColumn]);
+      if (!isNaN(aNum) && !isNaN(bNum)) return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+      return sortDirection === "asc"
+        ? String(a[sortColumn] || "").localeCompare(String(b[sortColumn] || ""))
+        : String(b[sortColumn] || "").localeCompare(String(a[sortColumn] || ""));
+    });
+  };
 
-    setFilterLoading(true);
-    setError(null);
-
-    if (props.scranWorker) {
-      props.scranWorker.postMessage({
-        type: "getMarkersForCluster",
-        payload: {
-          annotation: selectedAnnotation,
-          cluster: filterCluster,
-          rank_type: "cohen-min",
-          modality: props.selectedModality || "RNA",
-        },
-      });
+  const handleGroupByChange = (newGroupBy) => {
+    setGroupByColumn(newGroupBy);
+    if (markerData) {
+      const groups = [...new Set(markerData.rows.map(row => row[newGroupBy]))].filter(Boolean);
+      setAvailableGroups(groups);
+      setSelectedGroups(groups);
     }
   };
 
-  const addFilterCondition = () => {
-    setFilterConditions([
-      ...filterConditions,
-      { field: "means.lfc", operator: ">", value: 0 }
-    ]);
+  const handleAddFilter = () => {
+    const numericColumns = Object.keys(columnRanges);
+    if (numericColumns.length > 0) {
+      const firstCol = numericColumns[0];
+      const range = columnRanges[firstCol];
+      setFilterConditions([...filterConditions, { field: firstCol, min: range.min, max: range.max }]);
+    }
   };
 
-  const removeFilterCondition = (index) => {
+  const handleRemoveFilter = (index) => {
     setFilterConditions(filterConditions.filter((_, i) => i !== index));
   };
 
-  const updateFilterCondition = (index, key, value) => {
+  const handleUpdateFilter = (index, updates) => {
     const newConditions = [...filterConditions];
-    newConditions[index][key] = value;
+    newConditions[index] = { ...newConditions[index], ...updates };
     setFilterConditions(newConditions);
   };
 
-  const drawDotplot = (data) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !data) return;
-
-    const { clusters, genes, matrix, pctMatrix } = data;
-    const ctx = canvas.getContext("2d");
-
-    const margin = { top: 100, right: 50, bottom: 50, left: 150 };
-    const cellWidth = 40;
-    const cellHeight = 25;
-    const width = margin.left + clusters.length * cellWidth + margin.right;
-    const height = margin.top + genes.length * cellHeight + margin.bottom;
-
-    canvas.width = width;
-    canvas.height = height;
-
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    // Color scale
-    const colorScale = d3.scaleSequential(d3.interpolateReds).domain([0, 1]);
-
-    // Draw cells
-    for (let i = 0; i < genes.length; i++) {
-      for (let j = 0; j < clusters.length; j++) {
-        const x = margin.left + j * cellWidth;
-        const y = margin.top + i * cellHeight;
-        const expr = matrix[i][j];
-        const pct = pctMatrix[i][j];
-
-        ctx.fillStyle = colorScale(expr);
-        ctx.fillRect(x, y, cellWidth, cellHeight);
-
-        // Draw dot
-        const radius = Math.sqrt(pct) * 8;
-        ctx.fillStyle = "#333";
-        ctx.beginPath();
-        ctx.arc(x + cellWidth / 2, y + cellHeight / 2, radius, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    }
-
-    // Draw gene labels
-    ctx.fillStyle = "#000";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (let i = 0; i < genes.length; i++) {
-      const y = margin.top + i * cellHeight + cellHeight / 2;
-      ctx.fillText(genes[i], margin.left - 10, y);
-    }
-
-    // Draw cluster labels
-    ctx.save();
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    for (let j = 0; j < clusters.length; j++) {
-      const x = margin.left + j * cellWidth + cellWidth / 2;
-      ctx.translate(x, margin.top - 10);
-      ctx.rotate(-Math.PI / 4);
-      ctx.fillText(clusters[j], 0, 0);
-      ctx.rotate(Math.PI / 4);
-      ctx.translate(-x, -(margin.top - 10));
-    }
-    ctx.restore();
-
-    // Draw legend
-    const legendX = width - margin.right + 10;
-    const legendY = margin.top;
-    const legendHeight = 100;
-    const legendWidth = 20;
-
-    for (let i = 0; i <= legendHeight; i++) {
-      const val = 1 - i / legendHeight;
-      ctx.fillStyle = colorScale(val);
-      ctx.fillRect(legendX, legendY + i, legendWidth, 1);
-    }
-
-    ctx.strokeStyle = "#000";
-    ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
-
-    ctx.fillStyle = "#000";
-    ctx.font = "10px Arial";
-    ctx.textAlign = "left";
-    ctx.fillText("High", legendX + legendWidth + 5, legendY);
-    ctx.fillText("Low", legendX + legendWidth + 5, legendY + legendHeight);
+  const toggleGroup = (group) => {
+    setSelectedGroups(prev =>
+      prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
+    );
   };
 
-  useEffect(() => {
-    if (dotplotData) {
-      drawDotplot(dotplotData);
-    }
-  }, [dotplotData]);
+  // ---- Generate filtered gene list ----
+  const handleGenerateList = () => {
+    if (!markerData) { setError("Please upload a marker file"); return; }
+    if (!groupByColumn) { setError("Please select a group by column"); return; }
+    if (selectedGroups.length === 0) { setError("Please select at least one group"); return; }
 
-  useEffect(() => {
-    if (!props.scranWorker) return;
+    // Apply filters
+    let filteredData = [...markerData.rows];
+    filteredData = filteredData.filter(row => selectedGroups.includes(row[groupByColumn]));
+    filterConditions.forEach(condition => {
+      filteredData = filteredData.filter(row => {
+        const value = parseFloat(row[condition.field]);
+        if (isNaN(value)) return false;
+        return value >= condition.min && value <= condition.max;
+      });
+    });
 
-    const handleMessage = (event) => {
-      const { type, resp } = event.data;
+    // Group by cluster and get top N genes
+    const genesByGroup = {};
+    filteredData.forEach(row => {
+      const group = row[groupByColumn];
+      const gene = row[markerData.geneColumn];
+      if (!genesByGroup[group]) genesByGroup[group] = [];
+      genesByGroup[group].push(gene);
+    });
 
-      if (type === "checkH5adMarkers_DATA") {
-        setHasH5adMarkers(resp?.hasMarkers || false);
-      }
+    const genesWithGroups = [];
+    Object.entries(genesByGroup).forEach(([group, genes]) => {
+      const uniqueGenes = [...new Set(genes)].slice(0, topN);
+      uniqueGenes.forEach(gene => { genesWithGroups.push({ group, gene }); });
+    });
 
-      if (type === "generateTopMarkerDotplot_DATA") {
-        setLoading(false);
-        if (resp?.success && resp?.data) {
-          setDotplotData(resp.data);
-          setError(null);
-        } else {
-          setError(resp?.message || "Failed to generate plot");
-        }
-      }
+    setFilteredGenes(genesWithGroups);
+    setError(null);
+  };
 
-      if (type === "setMarkersForCluster") {
-        setFilterLoading(false);
-        if (resp && resp.ordering) {
-          // Apply filter conditions
-          const genes = resp.ordering;
-          const lfc = resp.means?.lfc || [];
-          const cohen = resp.means?.cohen || [];
-          const auc = resp.means?.auc || [];
-          const detected = resp.means?.detected || [];
-          const mean = resp.mean || [];
-
-          let filtered = genes.map((gene, i) => ({
-            gene,
-            lfc: lfc[i] || 0,
-            cohen: cohen[i] || 0,
-            auc: auc[i] || 0.5,
-            detected: detected[i] || 0,
-            mean: mean[i] || 0,
-          }));
-
-          // Apply each filter condition
-          filterConditions.forEach(condition => {
-            filtered = filtered.filter(item => {
-              let value;
-              if (condition.field === "means.lfc") value = item.lfc;
-              else if (condition.field === "means.cohen") value = item.cohen;
-              else if (condition.field === "means.auc") value = item.auc;
-              else if (condition.field === "means.detected") value = item.detected;
-              else if (condition.field === "mean") value = item.mean;
-              else return true;
-
-              const threshold = parseFloat(condition.value);
-              if (condition.operator === ">") return value > threshold;
-              if (condition.operator === ">=") return value >= threshold;
-              if (condition.operator === "<") return value < threshold;
-              if (condition.operator === "<=") return value <= threshold;
-              if (condition.operator === "==") return Math.abs(value - threshold) < 0.0001;
-              return true;
-            });
-          });
-
-          // Take top N
-          filtered = filtered.slice(0, filterTopN);
-          setFilteredGenes(filtered.map(item => item.gene));
-        }
-      }
-    };
-
-    props.scranWorker.addEventListener("message", handleMessage);
-    listenerRef.current = handleMessage;
-    return () => {
-      props.scranWorker.removeEventListener("message", listenerRef.current);
-    };
-  }, [props.scranWorker, filterConditions, filterTopN]);
-
+  // ---- Render ----
   return (
     <div className="topmarker-container">
-      <div className="topmarker-controls">
-        <Label>
-          Choose annotation
-          <HTMLSelect
-            value={selectedAnnotation || ""}
-            onChange={(e) => setSelectedAnnotation(e.target.value)}
-            fill
-            disabled={loading}
-          >
-            {allCols.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
-          </HTMLSelect>
-        </Label>
-
-        <Label>
-          Top N markers per cluster
-          <NumericInput
-            value={topN}
-            onValueChange={(v) => setTopN(typeof v === "number" ? v : 7)}
-            min={1}
-            max={50}
-            stepSize={1}
-            disabled={loading}
+      <div className="topmarker-left-panel">
+        {/* Upload */}
+        <Label htmlFor="topmarker-file-input">
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            Upload markers
+            <Tooltip2 content="Upload Seurat/Scanpy marker output (CSV, TSV, XLSX).">
+              <Icon icon="help" size={12} style={{ cursor: "help" }} />
+            </Tooltip2>
+          </div>
+          <FileInput
+            id="topmarker-file-input"
+            inputProps={{ id: "topmarker-file-input", name: "topmarker-file" }}
+            text={markerData ? "File uploaded" : "Choose file..."}
+            onInputChange={handleFileUpload}
             fill
           />
         </Label>
 
-        {!hasH5adMarkers && (
+        {/* Column selection */}
+        {uploadedFileData && fileColumns.length > 0 && (
           <>
-            <Label>
-              Upload marker genes (optional)
-              <Popover2
-                content={
-                  <div style={{ padding: "10px", maxWidth: "300px" }}>
-                    Upload a CSV/TSV/XLSX file with marker genes.
-                    You'll be able to select which columns contain cluster and gene information.
-                  </div>
-                }
-                placement="right"
-              >
-                <Icon
-                  icon="info-sign"
-                  size={14}
-                  style={{ marginLeft: "5px", cursor: "help" }}
-                />
-              </Popover2>
-              <FileInput
-                text={uploadedMarkers ? "File uploaded" : "Choose file..."}
-                onInputChange={handleFileUpload}
-                disabled={loading}
-                fill
-              />
+            <Label htmlFor="cluster-column-select">
+              Cluster/Group Column
+              <HTMLSelect id="cluster-column-select" name="cluster-column" value={clusterColumn}
+                onChange={(e) => setClusterColumn(e.target.value)} fill>
+                <option value="">Select...</option>
+                {fileColumns.map(col => <option key={col} value={col}>{col}</option>)}
+              </HTMLSelect>
             </Label>
 
-            {showColumnMapping && (
-              <Callout intent="primary" style={{ marginTop: "10px" }}>
-                <h4 style={{ marginTop: 0 }}>Select Columns</h4>
-                <Label>
-                  Cluster/Group Column
-                  <HTMLSelect
-                    value={clusterColumn}
-                    onChange={(e) => setClusterColumn(e.target.value)}
-                    fill
-                  >
-                    <option value="">Select column...</option>
-                    {fileColumns.map(col => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </HTMLSelect>
-                </Label>
-
-                <Label>
-                  Gene Column
-                  <HTMLSelect
-                    value={geneColumn}
-                    onChange={(e) => setGeneColumn(e.target.value)}
-                    fill
-                  >
-                    <option value="">Select column...</option>
-                    {fileColumns.map(col => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </HTMLSelect>
-                </Label>
-
-                <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                  <Button
-                    intent="primary"
-                    text="Confirm"
-                    onClick={handleConfirmColumnMapping}
-                    disabled={!clusterColumn || !geneColumn}
-                  />
-                  <Button
-                    text="Cancel"
-                    onClick={() => {
-                      setShowColumnMapping(false);
-                      setUploadedFileData(null);
-                    }}
-                  />
-                </div>
-              </Callout>
-            )}
+            <Label htmlFor="gene-column-select">
+              Gene/Marker Column
+              <HTMLSelect id="gene-column-select" name="gene-column" value={geneColumn}
+                onChange={(e) => setGeneColumn(e.target.value)} fill>
+                <option value="">Select...</option>
+                {fileColumns.map(col => <option key={col} value={col}>{col}</option>)}
+              </HTMLSelect>
+            </Label>
           </>
         )}
 
-        {hasH5adMarkers && !uploadedMarkers && (
-          <Callout intent="success" icon="tick">
-            H5AD file contains marker genes in uns structure
-          </Callout>
-        )}
+        {/* Group by */}
+        {markerData && (
+          <>
+            <Label htmlFor="group-by-select">
+              Group by
+              <HTMLSelect id="group-by-select" name="group-by" value={groupByColumn}
+                onChange={(e) => handleGroupByChange(e.target.value)} fill>
+                {fileColumns.map(col => <option key={col} value={col}>{col}</option>)}
+              </HTMLSelect>
+            </Label>
 
-        <div className="topmarker-actions">
-          <Button
-            intent="primary"
-            text="Generate Plot"
-            onClick={handleGeneratePlot}
-            disabled={loading || !selectedAnnotation}
-            icon="chart"
-          />
-        </div>
-
-        {loading && (
-          <Callout intent="primary" icon={<Spinner size={16} />}>
-            Generating plot...
-          </Callout>
-        )}
-
-        {error && (
-          <Callout intent="danger" icon="error">
-            {error}
-          </Callout>
-        )}
-
-        {/* Gene Filter Section */}
-        <div className="topmarker-filter-section" style={{ marginTop: "30px", borderTop: "2px solid #ddd", paddingTop: "20px" }}>
-          <h4>Gene Filter</h4>
-
-          <Label>
-            Select Cluster
-            <HTMLSelect
-              value={filterCluster || ""}
-              onChange={(e) => setFilterCluster(e.target.value)}
-              fill
-              disabled={filterLoading || !selectedAnnotation}
-            >
-              <option value="">Choose cluster...</option>
-              {selectedAnnotation && annotationObj[selectedAnnotation] && (() => {
-                const data = annotationObj[selectedAnnotation];
-                const levels = data.type === "factor" ? data.levels : [...new Set(data.values)];
-                return levels.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ));
-              })()}
-            </HTMLSelect>
-          </Label>
-
-          <Label>
-            Top N markers
-            <NumericInput
-              value={filterTopN}
-              onValueChange={(v) => setFilterTopN(typeof v === "number" ? v : 10)}
-              min={1}
-              max={100}
-              stepSize={1}
-              disabled={filterLoading}
-              fill
-            />
-          </Label>
-
-          <Label>
-            Filter Conditions
-            <div className="filter-conditions">
-              {filterConditions.map((condition, index) => (
-                <div key={index} className="filter-condition-row" style={{ display: "flex", gap: "5px", marginBottom: "5px" }}>
-                  <HTMLSelect
-                    value={condition.field}
-                    onChange={(e) => updateFilterCondition(index, "field", e.target.value)}
-                    disabled={filterLoading}
-                  >
-                    <option value="means.lfc">avg_log2FC</option>
-                    <option value="means.cohen">Cohen's d</option>
-                    <option value="means.auc">AUC</option>
-                    <option value="means.detected">pct.1</option>
-                    <option value="mean">Mean Expression</option>
-                  </HTMLSelect>
-
-                  <HTMLSelect
-                    value={condition.operator}
-                    onChange={(e) => updateFilterCondition(index, "operator", e.target.value)}
-                    disabled={filterLoading}
-                  >
-                    <option value=">">{">"}</option>
-                    <option value=">=">{">="}</option>
-                    <option value="<">{"<"}</option>
-                    <option value="<=">{"<="}</option>
-                    <option value="==">{"=="}</option>
-                  </HTMLSelect>
-
-                  <NumericInput
-                    value={condition.value}
-                    onValueChange={(v) => updateFilterCondition(index, "value", typeof v === "number" ? v : 0)}
-                    stepSize={0.1}
-                    minorStepSize={0.01}
-                    disabled={filterLoading}
-                    style={{ width: "100px" }}
-                  />
-
-                  <Button
-                    icon="cross"
-                    minimal
-                    onClick={() => removeFilterCondition(index)}
-                    disabled={filterLoading || filterConditions.length === 1}
-                  />
+            {availableGroups.length > 0 && (
+              <Label>
+                Target Group(s)
+                <div className="de-group-selector de-scrollable"
+                  style={{ maxHeight: 90, overflowY: "auto", border: "1px solid #ddd", borderRadius: 4, padding: 10, backgroundColor: "white" }}>
+                  {availableGroups.map(group => (
+                    <label key={group} className="de-checkbox-label">
+                      <input type="checkbox" checked={selectedGroups.includes(group)}
+                        onChange={() => toggleGroup(group)} />
+                      {group}
+                    </label>
+                  ))}
                 </div>
-              ))}
+              </Label>
+            )}
 
-              <Button
-                icon="plus"
-                text="Add Condition"
-                minimal
-                onClick={addFilterCondition}
-                disabled={filterLoading}
-                style={{ marginTop: "5px" }}
-              />
-            </div>
-          </Label>
+            <Label htmlFor="top-n-input">
+              Top N markers per cluster
+              <NumericInput id="top-n-input" inputProps={{ id: "top-n-input", name: "top-n" }}
+                value={topN} onValueChange={(v) => setTopN(typeof v === "number" ? v : 3)}
+                min={1} max={50} stepSize={1} fill />
+            </Label>
 
-          <Button
-            intent="primary"
-            text="Filter Genes"
-            onClick={handleFilterGenes}
-            disabled={filterLoading || !filterCluster || !selectedAnnotation}
-            icon="filter"
-          />
+            {/* Filter conditions */}
+            <Label>
+              Filter Conditions
+              <Button icon="add" text="Add Filter" onClick={handleAddFilter}
+                disabled={Object.keys(columnRanges).length === 0} small style={{ marginLeft: 10 }} />
+            </Label>
 
-          {filterLoading && (
-            <Callout intent="primary" icon={<Spinner size={16} />} style={{ marginTop: "10px" }}>
-              Filtering genes...
-            </Callout>
-          )}
-        </div>
+            {filterConditions.map((condition, index) => (
+              <div key={index} style={{ marginBottom: 10, padding: 10, border: "1px solid #ddd", borderRadius: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                  <HTMLSelect value={condition.field}
+                    onChange={(e) => {
+                      const newField = e.target.value;
+                      const range = columnRanges[newField];
+                      handleUpdateFilter(index, { field: newField, min: range.min, max: range.max });
+                    }}>
+                    {Object.keys(columnRanges).map(col => <option key={col} value={col}>{col}</option>)}
+                  </HTMLSelect>
+                  <Button icon="cross" minimal small onClick={() => handleRemoveFilter(index)} />
+                </div>
+                <RangeSlider
+                  min={columnRanges[condition.field]?.min || 0}
+                  max={columnRanges[condition.field]?.max || 1}
+                  stepSize={(columnRanges[condition.field]?.max - columnRanges[condition.field]?.min) / 100 || 0.01}
+                  labelStepSize={(columnRanges[condition.field]?.max - columnRanges[condition.field]?.min)}
+                  labelRenderer={(value) => value.toFixed(2)}
+                  value={[condition.min, condition.max]}
+                  onChange={(range) => handleUpdateFilter(index, { min: range[0], max: range[1] })}
+                />
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* Generate */}
+        <Button intent="primary" text="Generate List" onClick={handleGenerateList}
+          disabled={!markerData} fill large />
+
+        {error && <Callout intent="danger" icon="error">{error}</Callout>}
       </div>
 
-      <div className="topmarker-plot">
-        <canvas ref={canvasRef} />
+      <div className="topmarker-right-panel">
+        {/* Top Genes + Full marker table */}
+        {markerData && markerData.rows.length > 0 && (
+          <div style={{ display: "flex", gap: 10, height: "100%" }}>
+            {filteredGenes.length > 0 && (
+              <div className="topmarker-genes-list">
+                <h4 style={{ marginTop: 0 }}>Top Genes</h4>
+                <table style={{ width: "100%", fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 5 }}>Group</th>
+                      <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 5 }}>Gene</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGenes.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: 5 }}>{item.group}</td>
+                        <td style={{ padding: 5 }}>{item.gene}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-        {/* Filtered Genes Panel */}
-        {filteredGenes.length > 0 && (
-          <div className="filtered-genes-panel" style={{
-            marginTop: "20px",
-            padding: "15px",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            backgroundColor: "#f9f9f9"
-          }}>
-            <h4>Filtered Genes ({filteredGenes.length})</h4>
-            <div style={{
-              maxHeight: "400px",
-              overflowY: "auto",
-              fontFamily: "monospace",
-              fontSize: "14px",
-              lineHeight: "1.8"
-            }}>
-              {filteredGenes.map((gene, index) => (
-                <div key={index} style={{ padding: "2px 0" }}>
-                  {gene}
-                </div>
-              ))}
+            <div style={{ flex: 1, maxHeight: "100%", overflowY: "auto", border: "1px solid #ddd", borderRadius: 4, padding: 10, backgroundColor: "white" }}>
+              <h4 style={{ marginTop: 0 }}>All Markers ({markerData.rows.length} rows)</h4>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f5f5f5", position: "sticky", top: 0 }}>
+                      {markerData.headers.map((header, idx) => (
+                        <th key={idx} onClick={() => handleSort(header)}
+                          style={{ padding: 6, borderBottom: "2px solid #ddd", textAlign: "left",
+                            whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", backgroundColor: "#f5f5f5" }}>
+                          {header}
+                          {sortColumn === header && <span style={{ marginLeft: 4 }}>{sortDirection === "asc" ? "▲" : "▼"}</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getSortedData().map((row, rowIdx) => (
+                      <tr key={rowIdx} style={{ borderBottom: "1px solid #eee" }}>
+                        {markerData.headers.map((header, colIdx) => (
+                          <td key={colIdx} style={{ padding: 6, whiteSpace: "nowrap" }}>{row[header]}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <Button
-              text="Copy All"
-              icon="clipboard"
-              small
-              style={{ marginTop: "10px" }}
-              onClick={() => {
-                navigator.clipboard.writeText(filteredGenes.join("\n"));
-              }}
-            />
           </div>
         )}
-      </div>
       </div>
     </div>
   );
 };
 
-export default React.memo(TopMarker);
+export default TopMarker;

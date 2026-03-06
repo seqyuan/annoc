@@ -1,0 +1,98 @@
+.topmarker-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 100px);
+}
+
+.topmarker-left-panel {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.topmarker-right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.topmarker-canvas-container {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topmarker-canvas-container canvas {
+  display: block;
+}
+
+.topmarker-genes-list {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.topmarker-genes-list table {
+  border-collapse: collapse;
+}
+
+.topmarker-genes-list th {
+  font-weight: 600;
+  background: #e8e8e8;
+}
+
+.topmarker-genes-list tr:hover {
+  background: #f0f0f0;
+}
+
+.de-checkbox-label {
+  display: block;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.de-checkbox-label input {
+  margin-right: 8px;
+}
+
+.de-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+.de-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.de-scrollable::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.de-scrollable::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.de-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

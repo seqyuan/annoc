@@ -35,7 +35,11 @@ if (typeof window === 'undefined') {
                     newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
                     newHeaders.set("Cross-Origin-Resource-Policy", "same-origin");
 
-                    return new Response(response.body, {
+                    // Null body status codes (204, 304) cannot have a body
+                    const nullBodyStatuses = [101, 204, 205, 304];
+                    const body = nullBodyStatuses.includes(response.status) ? null : response.body;
+
+                    return new Response(body, {
                         status: response.status,
                         statusText: response.statusText,
                         headers: newHeaders,
