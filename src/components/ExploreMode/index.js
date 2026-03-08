@@ -16,6 +16,7 @@ import {
   H3,
   Callout,
   Spinner,
+  Overlay,
 } from "@blueprintjs/core";
 
 import { Tooltip2, Classes as popclass } from "@blueprintjs/popover2";
@@ -25,17 +26,18 @@ import SplitPane from "react-split-pane";
 import { LoadExplore } from "../LoadExplore";
 
 import Stats from "../Stats";
-import Logs from "../Logs";
 import {
   getMinMax,
   code,
   resetApp,
   default_selection,
+  smartSortClusters,
 } from "../../utils/utils";
 import DimPlot from "../Plots/DimPlot";
 import MarkerPlot from "../Markers/index";
 import DotPlot from "../DotPlot";
 import TopMarker from "../TopMarker";
+import Help from "../Help";
 
 import { AppContext } from "../../context/AppContext";
 
@@ -57,11 +59,7 @@ let logs = [];
 export function ExplorerMode() {
   // true until wasm is initialized
   const [loading, setLoading] = useState(true);
-
-  // Logs
-  // const [logs, setLogs] = useState([]);
-  // show logs drawer
-  const [showLogs, setShowLogs] = useState(false);
+  const [showDataLoadingOverlay, setShowDataLoadingOverlay] = useState(false);
 
   // Error handling
   // error message caught from the worker
@@ -82,6 +80,8 @@ export function ExplorerMode() {
     setGeneColSel,
     exploreFiles,
     preInputFiles,
+    globalClusterOrder,
+    setGlobalClusterOrder,
   } = useContext(AppContext);
 
   // show various components, reacts to left side bar clicks
@@ -670,6 +670,7 @@ export function ExplorerMode() {
   // automatically switch to the explore results panel.
   useEffect(() => {
     if (exploreFiles && exploreFiles.files) {
+      setShowDataLoadingOverlay(true);
       setShowPanel("explore");
     }
   }, [exploreFiles]);
@@ -737,6 +738,9 @@ export function ExplorerMode() {
         setPreInputFilesStatus(resp.details);
       }
     } else if (type === "inputs_DATA") {
+      // Hide loading overlay when data is loaded
+      setShowDataLoadingOverlay(false);
+
       var info = [];
       for (var [k, v] of Object.entries(resp.num_genes)) {
         if (k == "") {
@@ -957,6 +961,25 @@ export function ExplorerMode() {
       tmp[resp.annotation] = resp.values;
       setAnnotationObj(tmp);
 
+      // Initialize globalClusterOrder for categorical annotations if not already set
+      if (annotationCols[resp.annotation]?.type !== "continuous" && !globalClusterOrder[resp.annotation]) {
+        const annotationData = resp.values;
+        let uniqueClusters = [];
+
+        if (annotationData.type === "array") {
+          uniqueClusters = [...new Set(annotationData.values)];
+        } else if (annotationData.type === "factor") {
+          uniqueClusters = annotationData.levels || [];
+        }
+
+        // Apply smart sort and save to globalClusterOrder
+        const sortedClusters = smartSortClusters(uniqueClusters);
+        setGlobalClusterOrder(prev => ({
+          ...prev,
+          [resp.annotation]: sortedClusters
+        }));
+      }
+
       setReqAnnotation(null);
     } else if (type === "downloadAllSelections_DATA") {
       const { selections } = resp || {};
@@ -1057,7 +1080,7 @@ export function ExplorerMode() {
   const [cellAnnWidth, setCellAnnWidth] = useState(360);
 
   // cluster annotation panel width
-  const [clusterAnnWidth, setClusterAnnWidth] = useState(360);
+  const [clusterAnnWidth, setClusterAnnWidth] = useState(420);
 
   const handleResize = () => {
     setWindowWidth(window.innerWidth);
@@ -1258,13 +1281,12 @@ export function ExplorerMode() {
                     icon={"heat-grid"}
                     onClick={() => setShowPanel("topmarker")}
                     intent={showPanel === "topmarker" ? "primary" : "none"}
-                    disabled={selectedRedDim === null}
                   ></Button>
                   <span
-                    onClick={() => selectedRedDim !== null && setShowPanel("topmarker")}
+                    onClick={() => setShowPanel("topmarker")}
                     style={{
-                      cursor: selectedRedDim !== null ? "pointer" : "not-allowed",
-                      color: showPanel === "topmarker" ? "#184A90" : (selectedRedDim !== null ? "black" : "#999"),
+                      cursor: "pointer",
+                      color: showPanel === "topmarker" ? "#184A90" : "black",
                     }}
                   >
                     TOPMARKER
@@ -1272,61 +1294,37 @@ export function ExplorerMode() {
                 </div>
               </Tooltip2>
             </div>
+            <Divider />
             <div
               className={
-                showPanel === "logs" ? "item-sidebar-intent" : "item-sidebar"
+                showPanel === "help" ? "item-sidebar-intent" : "item-sidebar"
               }
             >
               <Tooltip2
                 className={popclass.TOOLTIP2_INDICATOR}
-                content="View analysis logs"
+                content="Cluster annotation guide"
                 minimal={false}
                 placement={"right"}
-                intent={showPanel === "logs" ? "primary" : "none"}
+                intent={showPanel === "help" ? "primary" : ""}
               >
                 <div className="item-button-group">
-                  {exploreFiles?.files === null ? (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      icon={"console"}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    ></Button>
-                  ) : !showMarkerLoader && !showDimPlotLoader ? (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      icon={"console"}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    ></Button>
-                  ) : (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    >
-                      <div style={{ display: "flex" }}>
-                        <Spinner size={20} intent="warning" />
-                      </div>
-                    </Button>
-                  )}
+                  <Button
+                    outlined={false}
+                    large={false}
+                    minimal={true}
+                    fill={true}
+                    icon={"help"}
+                    onClick={() => setShowPanel("help")}
+                    intent={showPanel === "help" ? "primary" : "none"}
+                  ></Button>
                   <span
-                    onClick={() => setShowLogs(true)}
+                    onClick={() => setShowPanel("help")}
                     style={{
                       cursor: "pointer",
-                      color: showPanel === "logs" ? "#184A90" : "black",
+                      color: showPanel === "help" ? "#184A90" : "black",
                     }}
                   >
-                    LOGS
+                    HELP
                   </span>
                 </div>
               </Tooltip2>
@@ -1451,7 +1449,7 @@ export function ExplorerMode() {
                 split="vertical"
                 primary="second"
                 size={clusterAnnWidth}
-                minSize={280}
+                minSize={400}
                 maxSize={-100}
                 onChange={(size) => {
                   console.log('ClusterAnnotation panel resized to:', size);
@@ -1533,6 +1531,7 @@ export function ExplorerMode() {
                 <ClusterAnnotation
                   scranWorker={scranWorker}
                   setReqAnnotation={setReqAnnotation}
+                  annotationObj={annotationObj}
                   onCollapse={() => setClusterAnnotationCollapsed(true)}
                 />
               </SplitPane>
@@ -1587,6 +1586,9 @@ export function ExplorerMode() {
           <div style={{ display: showPanel === "topmarker" ? "block" : "none" }}>
             <TopMarker />
           </div>
+          <div style={{ display: showPanel === "help" ? "block" : "none" }}>
+            <Help />
+          </div>
         </div>
       </SplitPane>
       <Alert
@@ -1619,17 +1621,29 @@ export function ExplorerMode() {
         {scranError?.fatal && (
           <Button
             intent="warning"
-            text="Check Logs"
-            onClick={() => setShowLogs(true)}
+            text="Error occurred"
           />
         )}
       </Alert>
-      <Logs
-        loadingStatus={true}
-        showLogs={showLogs}
-        setShowLogs={setShowLogs}
-        logs={logs}
-      />
+      <Overlay isOpen={showDataLoadingOverlay} canEscapeKeyClose={false} canOutsideClickClose={false}>
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '15px'
+        }}>
+          <Spinner size={50} />
+          <div style={{ fontSize: '16px', fontWeight: 500 }}>Loading data...</div>
+        </div>
+      </Overlay>
     </div>
   );
 }

@@ -389,7 +389,11 @@ const DotPlot = (props) => {
           const rows = parseXlsxBuffer(e.target.result);
           const groups = rowsToGeneGroups(rows);
           setGeneGroups(groups);
-          setGeneInput(groups.flatMap((g) => g.genes).join("\n"));
+          // Display category + gene in input (tab-separated)
+          const inputText = groups.flatMap((g) =>
+            g.genes.map(gene => `${g.category}\t${gene}`)
+          ).join("\n");
+          setGeneInput(inputText);
         } catch (err) {
           setError("Failed to parse XLSX: " + (err.message || String(err)));
           setGeneGroups([]);
@@ -403,7 +407,11 @@ const DotPlot = (props) => {
         const rows = parseCsvOrTxt(text);
         const groups = rowsToGeneGroups(rows);
         setGeneGroups(groups);
-        setGeneInput(groups.flatMap((g) => g.genes).join("\n"));
+        // Display category + gene in input (tab-separated)
+        const inputText = groups.flatMap((g) =>
+          g.genes.map(gene => `${g.category}\t${gene}`)
+        ).join("\n");
+        setGeneInput(inputText);
       };
       reader.readAsText(file);
     }
@@ -969,6 +977,7 @@ B cells,MS4A1`}
               onClick={handleGeneratePlot}
               disabled={loading || !selectedAnnotation}
               icon="chart"
+              fill
             />
           </div>
 

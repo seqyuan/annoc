@@ -183,13 +183,24 @@ export const palette = {
 export const defaultColor = "#5F6B7C";
 
 export function getFactorsFromArray(col) {
-  const levels = [...new Set(col)];
-  let indices = [];
-  col.map((x, i) => {
-    indices[i] = levels.indexOf(x);
+  const uniqueLevels = [...new Set(col)];
+
+  // Smart sort: numeric if all values are numeric, otherwise lexicographic
+  const allNumeric = uniqueLevels.every(c => {
+    const str = String(c).trim();
+    return str !== '' && !isNaN(Number(str));
   });
 
-  return { levels: levels, indices: indices };
+  const sortedLevels = allNumeric
+    ? uniqueLevels.sort((a, b) => Number(String(a)) - Number(String(b)))
+    : uniqueLevels.sort();
+
+  let indices = [];
+  col.map((x, i) => {
+    indices[i] = sortedLevels.indexOf(x);
+  });
+
+  return { levels: sortedLevels, indices: indices };
 }
 
 export function getGradient(min, max) {

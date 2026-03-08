@@ -4,7 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AnnoC** is a client-side single-cell RNA-seq analysis web application that runs entirely in the browser using WebAssembly. The application performs computationally intensive analysis locally without sending data to backend servers, ensuring privacy and eliminating server costs.
+**AnnoCluster** is a client-side single-cell RNA-seq cluster annotation assistant that runs entirely in the browser using WebAssembly. This application bridges the gap between computational analysis and biological interpretation by helping non-programming users annotate and name cell clusters from unsupervised clustering results.
+
+### Core Purpose and User Workflow
+
+AnnoCluster abstracts away the programming complexity of single-cell analysis, enabling biologists to:
+
+1. **Load Data**: Import pre-computed clustering results from various formats (H5AD, RDS, 10X, etc.)
+2. **Explore Clusters**: Visualize clusters in reduced dimensions (UMAP/t-SNE)
+3. **Identify Cell Types**: Use multiple evidence sources to determine cluster identity:
+   - Search and visualize canonical marker gene expression across clusters
+   - Upload and filter top marker lists to assess specificity
+   - View marker expression patterns in DotPlot for specificity assessment
+   - Check QC metrics via VlnPlot to identify low-quality clusters
+   - Detect proliferating clusters (high TOP2A/MKI67 expression)
+4. **AI-Assisted Annotation**: Export cluster-specific markers to AI models (e.g., DeepSeek, ChatGPT) for cell type suggestions
+5. **Manual Annotation**: Assign biologically meaningful names to clusters based on evidence
+
+### Key User Scenarios
+
+**Scenario 1: High-Specificity Markers**
+- Cluster shows specific expression of known markers (e.g., CD3D/CD3E for T cells)
+- User searches these genes → sees clear cluster-specific expression
+- Confidently names cluster as "T cells"
+
+**Scenario 2: Non-Specific Top Markers**
+- Cluster's top markers are expressed across multiple clusters
+- Suggests potential low-quality cluster or doublets
+- User checks VlnPlot for QC metrics (nCount_RNA, nFeature_RNA, percent.mt)
+- If QC metrics are poor → label as "Low Quality" or exclude from analysis
+
+**Scenario 3: Proliferating Cells**
+- Cluster highly expresses cell cycle markers (TOP2A, MKI67, PCNA)
+- Lacks other specific cell type markers
+- User names cluster as "Proliferating cells" or "Cycling [cell type]"
+
+**Scenario 4: AI-Assisted Identification**
+- Cluster has specific markers but user unsure of cell type
+- User uploads top markers → filters in DotPlot for specificity
+- Exports specific markers → asks AI: "What cell type expresses these markers: [gene list]?"
+- AI suggests cell type → user validates and annotates
+
+### Design Philosophy
+
+- **No Programming Required**: All analysis accessible through GUI
+- **Evidence-Based Annotation**: Multiple visualization tools to build confidence
+- **Privacy-First**: All computation runs locally in browser (no data upload to servers)
+- **Reproducible**: Save and reload analysis states (.kana files)
+- **Flexible**: Works with various input formats and analysis pipelines
 
 Key technologies:
 - **scran.js**: WebAssembly-compiled C/C++ libraries for efficient client-side single-cell analysis
@@ -114,15 +161,21 @@ Data flow:
 - `LoadAnalysis/`: Load saved .kana analysis files
 - `LoadExplore/`: Explore pre-computed results without full analysis
 - `AnalysisMode/`: Main analysis interface and workflow orchestration
-- `ExploreMode/`: Interface for exploring loaded results
-- `Plots/`: Visualization components (DimPlot, Histogram, ViolinPlot, etc.)
+- `ExploreMode/`: Interface for exploring loaded results - **PRIMARY USER INTERFACE**
+- `Plots/`: Visualization components
+  - `DimPlot`: UMAP/t-SNE visualization with gene expression overlay
+  - `DotPlot`: Marker gene expression specificity across clusters (key for annotation)
+  - `VlnPlot`: QC metrics distribution by cluster (identify low-quality clusters)
+  - `Histogram`: Distribution plots
 - `Markers/`: Marker gene detection and display
+- `TopMarker/`: Top marker gene heatmap and filtering (identify cluster-specific markers)
 - `CellAnnotation/`: Cell type annotation interface
 - `FeatureSets/`: Gene set enrichment analysis
 - `ParamSelection/`: Analysis parameter configuration
 - `Gallery/`: Save and manage visualization snapshots
 - `Logs/`: Display analysis step timing and errors
 - `Stats/`: QC statistics and metrics
+- `Help/`: User guide for cluster annotation workflow (NEW)
 
 ### Supported Input Formats
 
@@ -212,6 +265,57 @@ Users can create custom cell selections in visualizations:
 - Stored with key pattern `${code}::SELECTION`
 - Can perform marker detection on custom selections
 - Separate from cluster-based annotations
+
+### Cluster Annotation Workflow
+
+The application is designed around a systematic cluster annotation workflow:
+
+1. **Initial Exploration** (DimPlot)
+   - Visualize all clusters in UMAP/t-SNE space
+   - Assess cluster separation and quality
+   - Identify potential doublets or low-quality clusters
+
+2. **Marker Gene Search** (DimPlot + Gene Expression)
+   - Search canonical markers for expected cell types
+   - Overlay expression on dimension plot
+   - Identify clusters with specific marker expression
+
+3. **Top Marker Analysis** (TopMarker)
+   - View heatmap of top differentially expressed genes per cluster
+   - Upload external marker lists for comparison
+   - Filter markers by expression specificity
+
+4. **Specificity Assessment** (DotPlot)
+   - Visualize marker expression across all clusters
+   - Assess specificity: is marker unique to one cluster?
+   - Non-specific markers suggest:
+     - Low-quality cells (ribosomal/mitochondrial genes)
+     - Doublets (markers from multiple cell types)
+     - Proliferating cells (cell cycle genes across types)
+
+5. **Quality Control Check** (VlnPlot)
+   - When top markers are non-specific, check QC metrics:
+     - `nCount_RNA`: Total UMI counts per cell
+     - `nFeature_RNA`: Number of detected genes
+     - `percent.mt`: Mitochondrial gene percentage
+   - Low nCount/nFeature + high percent.mt → Low-quality cluster
+   - Decision: exclude or label as "Low Quality"
+
+6. **Proliferation Detection**
+   - High expression of: TOP2A, MKI67, PCNA, CDK1, CCNB1
+   - Lack of other specific markers
+   - Label as "Proliferating cells" or "Cycling [cell type]"
+
+7. **AI-Assisted Annotation**
+   - Export cluster-specific markers
+   - Query AI models: "What cell type specifically expresses: [gene list]?"
+   - Validate AI suggestions with literature/databases
+   - Apply annotation with confidence
+
+8. **Manual Annotation**
+   - Assign biologically meaningful names
+   - Document evidence for each annotation
+   - Save annotated results for downstream analysis
 
 ### File Format Detection
 

@@ -33,6 +33,7 @@ import { AppContext } from "../../context/AppContext";
 import { getSuppliedCols, getAnnotationLevels } from "../../utils/utils";
 import { generateColors } from "../Plots/colors";
 import Subcluster from "../Subcluster";
+import VlnPlot from "../Plots/VlnPlot";
 import "./annotation.css";
 
 // Sortable row component
@@ -1056,6 +1057,16 @@ const ClusterAnnotation = (props) => {
                 scranWorker={props.scranWorker}
                 setReqAnnotation={props.setReqAnnotation}
                 selectedAnnotation={selectedMetadata}
+              />
+            }
+          />
+          <Tab
+            id="vlnplot"
+            title="VlnPlot"
+            panel={
+              <VlnPlot
+                annotationObj={props.annotationObj}
+                setReqAnnotation={props.setReqAnnotation}
               />
             }
           />

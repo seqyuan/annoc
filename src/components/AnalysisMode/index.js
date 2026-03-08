@@ -29,7 +29,6 @@ import { LoadAnalysis } from "../LoadAnalysis";
 import { ParameterSelection } from "../ParamSelection";
 
 import Stats from "../Stats";
-import Logs from "../Logs";
 import {
   getMinMax,
   code,
@@ -87,8 +86,6 @@ export function AnalysisMode(props) {
 
   // Logs
   // const [logs, setLogs] = useState([]);
-  // show logs drawer
-  const [showLogs, setShowLogs] = useState(false);
 
   // Error handling
   // error message caught from the worker
@@ -1670,72 +1667,6 @@ export function AnalysisMode(props) {
                 <Divider />
               </>
             )}
-            <div
-              className={
-                showPanel === "logs" ? "item-sidebar-intent" : "item-sidebar"
-              }
-            >
-              {" "}
-              <Tooltip2
-                className={popclass.TOOLTIP2_INDICATOR}
-                content="What's happening under the hood? See the blow-by-blow logs as the analysis runs!"
-                minimal={false}
-                placement={"right"}
-                intent={showPanel === "logs" ? "primary" : "none"}
-              >
-                <div className="item-button-group">
-                  {(inputFiles?.files === null && loadFiles?.files === null) ||
-                  stateIndeterminate ? (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      icon={"console"}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    ></Button>
-                  ) : !showPCALoader &&
-                    !showNClusLoader &&
-                    !showMarkerLoader &&
-                    !showCellLabelLoader &&
-                    !showDimPlotLoader ? (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      icon={"console"}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    ></Button>
-                  ) : (
-                    <Button
-                      outlined={false}
-                      large={false}
-                      minimal={true}
-                      fill={true}
-                      onClick={() => setShowLogs(true)}
-                      intent={showPanel === "logs" ? "primary" : "none"}
-                    >
-                      <div style={{ display: "flex" }}>
-                        <Spinner size={20} intent="warning" />
-                      </div>
-                    </Button>
-                  )}
-
-                  <span
-                    onClick={() => setShowLogs(true)}
-                    style={{
-                      cursor: "pointer",
-                      color: showPanel === "logs" ? "#184A90" : "black",
-                    }}
-                  >
-                    LOGS
-                  </span>
-                </div>
-              </Tooltip2>
-            </div>
             {/* <Divider /> */}
           </div>
           <div className="left-sidebar-content-flex-bottom">
@@ -2076,17 +2007,10 @@ export function AnalysisMode(props) {
         {scranError?.fatal && (
           <Button
             intent="warning"
-            text="Check Logs"
-            onClick={() => setShowLogs(true)}
+            text="Error occurred"
           />
         )}
       </Alert>
-      <Logs
-        loadingStatus={true}
-        showLogs={showLogs}
-        setShowLogs={setShowLogs}
-        logs={logs}
-      />
     </div>
   );
 }

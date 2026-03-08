@@ -1,0 +1,37 @@
+.vlnplot-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: white;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.vlnplot-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.vlnplot-controls label {
+  margin-bottom: 0;
+}
+
+.vlnplot-canvas {
+  flex: 1;
+  overflow: auto;
+  min-height: 400px;
+  position: relative;
+}
+
+.vlnplot-canvas svg {
+  display: block;
+  min-width: 100%;
+  min-height: 100%;
+}

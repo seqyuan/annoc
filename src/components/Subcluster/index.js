@@ -180,7 +180,9 @@ const Subcluster = (props) => {
 
         {(algorithm === "multilevel" || algorithm === "leiden") && (
           <Label>
-            Resolution <ParamHelp content={HELP.resolution} />
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              Resolution <ParamHelp content={HELP.resolution} />
+            </div>
             <NumericInput
               value={resolution}
               onValueChange={(v) => setResolution(typeof v === "number" ? v : 0.25)}
@@ -195,7 +197,9 @@ const Subcluster = (props) => {
         )}
 
         <Label>
-          Algorithm <ParamHelp content={HELP.algorithm} />
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+            Algorithm <ParamHelp content={HELP.algorithm} />
+          </div>
           <HTMLSelect
             value={algorithm}
             onChange={(e) => setAlgorithm(e.target.value)}
@@ -212,7 +216,9 @@ const Subcluster = (props) => {
 
         {algorithm === "walktrap" && (
           <Label>
-            Walktrap steps <ParamHelp content={HELP.walktrapSteps} />
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              Walktrap steps <ParamHelp content={HELP.walktrapSteps} />
+            </div>
             <NumericInput
               value={walktrapSteps}
               onValueChange={(v) => setWalktrapSteps(typeof v === "number" ? v : 4)}
@@ -226,7 +232,9 @@ const Subcluster = (props) => {
         )}
 
         <Label>
-          k (neighbors) <ParamHelp content={HELP.k} />
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+            k (neighbors) <ParamHelp content={HELP.k} />
+          </div>
           <NumericInput
             value={k}
             onValueChange={(v) => setK(typeof v === "number" ? v : 20)}
@@ -239,7 +247,9 @@ const Subcluster = (props) => {
         </Label>
 
         <Label>
-          Scheme <ParamHelp content={HELP.scheme} />
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+            Scheme <ParamHelp content={HELP.scheme} />
+          </div>
           <HTMLSelect
             value={scheme}
             onChange={(e) => setScheme(e.target.value)}
