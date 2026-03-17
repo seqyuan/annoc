@@ -9,13 +9,25 @@ const hasCert =
   fs.existsSync(path.join(certDir, "key.pem"));
 
 module.exports = {
+  webpack: {
+    configure: (webpackConfig) => {
+      // Increase workbox precache size limit to 10MB to handle large WASM bundles
+      const workboxPlugin = webpackConfig.plugins.find(
+        (p) => p.constructor && p.constructor.name === "GenerateSW"
+      );
+      if (workboxPlugin) {
+        workboxPlugin.config = workboxPlugin.config || {};
+        workboxPlugin.config.maximumFileSizeToCacheInBytes = 10 * 1024 * 1024;
+      }
+      return webpackConfig;
+    },
+  },
   devServer: {
     allowedHosts: "all",
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
-    // HTTPS enables cross-origin isolation; use .cert/ if available
     ...(hasCert && {
       server: {
         type: "https",
@@ -25,7 +37,6 @@ module.exports = {
         },
       },
     }),
-    // COOP/COEP must run first; unshift ensures they apply to all responses
     setupMiddlewares: (middlewares) => {
       middlewares.unshift({
         name: "coop-coep-headers",
