@@ -39,13 +39,13 @@ export function extractBuffers(object, store) {
     for (const element of object) {
       extractBuffers(element, store);
     }
-  } else if (object.constructor == Object) {
-    for (const [key, element] of Object.entries(object)) {
+  } else if (object.constructor === Object) {
+    for (const [, element] of Object.entries(object)) {
       extractBuffers(element, store);
     }
   } else if (ArrayBuffer.isView(object)) {
     if (!(object.buffer instanceof ArrayBuffer)) {
-      throw "only ArrayBuffers should be in the message payload";
+      throw new Error("only ArrayBuffers should be in the message payload");
     }
     store.push(object.buffer);
   }
@@ -86,12 +86,13 @@ export function postError(type, err, fatal) {
 }
 
 export function splitMetricsByBlock(metrics, blockLevels, blockIds) {
-  var output = {};
+  let output = {};
   var blocks = blockIds.slice();
   for (var b = 0; b < blockLevels.length; b++) {
     let current = {};
+    const bIndex = b;
     for (const [key, val] of Object.entries(metrics)) {
-      current[key] = val.slice().filter((x, i) => blocks[i] == b);
+      current[key] = val.slice().filter((x, i) => blocks[i] === bIndex);
     }
     output[blockLevels[b]] = current;
   }
@@ -99,7 +100,7 @@ export function splitMetricsByBlock(metrics, blockLevels, blockIds) {
 }
 
 export function splitThresholdsByBlock(thresholds, blockLevels) {
-  var output = {};
+  let output = {};
   for (const x of blockLevels) {
     output[x] = {};
   }
@@ -159,7 +160,7 @@ export async function fetchStepSummary(state, step) {
       }
     }
 
-    var blocks = state[step].fetchBlockLevels();
+    let blocks = state[step].fetchBlockLevels();
     if (blocks !== null) {
       const col = state[step].fetchBlock().slice();
       if (isArrayOrView(col)) {
@@ -188,7 +189,7 @@ export async function fetchStepSummary(state, step) {
     };
 
     let output = {};
-    var blocks = state["inputs"].fetchBlockLevels();
+    let blocks = state["inputs"].fetchBlockLevels();
 
     if (blocks === null) {
       blocks = ["default"];
@@ -213,8 +214,8 @@ export async function fetchStepSummary(state, step) {
       proportion: state[step].fetchMetrics().subsetTotals(0),
     };
 
-    var output = {};
-    var blocks = state["inputs"].fetchBlockLevels();
+    let output = {};
+    let blocks = state["inputs"].fetchBlockLevels();
     if (blocks === null) {
       blocks = ["default"];
       output.data = { default: metrics };
@@ -231,7 +232,7 @@ export async function fetchStepSummary(state, step) {
 
     // We don't use sums for filtering but we do report it in the metrics,
     // so we just add some NaNs to the thresholds for consistency.
-    for (const [k, v] of Object.entries(output.thresholds)) {
+    for (const [, v] of Object.entries(output.thresholds)) {
       v.sums = NaN;
     }
 
@@ -244,7 +245,7 @@ export async function fetchStepSummary(state, step) {
     };
 
     let output = {};
-    var blocks = state["inputs"].fetchBlockLevels();
+    let blocks = state["inputs"].fetchBlockLevels();
     if (blocks === null) {
       blocks = ["default"];
       output.data = { default: metrics };
