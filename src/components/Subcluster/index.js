@@ -36,8 +36,9 @@ const Subcluster = (props) => {
   const { annotationCols, annotationObj, setAnnotationCols, setAnnotationObj, setReqAnnotation, globalClusterOrder } =
     useContext(AppContext);
 
-  // Use selectedAnnotation from props (passed from ClusterAnnotation)
-  const selectedAnnotation = props.selectedAnnotation;
+  // Independent annotation selection for Subcluster
+  const [selectedAnnotation, setSelectedAnnotation] = useState("");
+  const [availableAnnotations, setAvailableAnnotations] = useState([]);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [resolution, setResolution] = useState(0.1);
   const [algorithm, setAlgorithm] = useState("multilevel");
@@ -49,6 +50,20 @@ const Subcluster = (props) => {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const listenerRef = useRef(null);
+
+  // Initialize available annotations
+  useEffect(() => {
+    if (!annotationCols) return;
+    const suppliedCols = getSuppliedCols(annotationCols);
+    const computedCols = getComputedCols(annotationCols);
+    const allAnnotations = [...suppliedCols, ...computedCols];
+    setAvailableAnnotations(allAnnotations);
+
+    // Set default if not already set
+    if (allAnnotations.length > 0 && !selectedAnnotation) {
+      setSelectedAnnotation(allAnnotations[0]);
+    }
+  }, [annotationCols, selectedAnnotation]);
 
   // Request annotation data if not loaded
   useEffect(() => {
@@ -136,6 +151,22 @@ const Subcluster = (props) => {
   return (
     <div className="subcluster-container">
       <div className="subcluster-controls">
+        <Label>
+          Choose annotation
+          <HTMLSelect
+            value={selectedAnnotation}
+            onChange={(e) => {
+              setSelectedAnnotation(e.target.value);
+              setSelectedCluster(null); // Reset cluster selection when annotation changes
+            }}
+            fill
+          >
+            {availableAnnotations.map(col => (
+              <option key={col} value={col}>{col}</option>
+            ))}
+          </HTMLSelect>
+        </Label>
+
         {selectedAnnotation && (
           <Label>
             Clusters to subcluster (select one)

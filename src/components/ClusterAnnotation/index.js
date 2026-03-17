@@ -34,6 +34,7 @@ import { getSuppliedCols, getAnnotationLevels } from "../../utils/utils";
 import { generateColors } from "../Plots/colors";
 import Subcluster from "../Subcluster";
 import VlnPlot from "../Plots/VlnPlot";
+import SubsetExportDialog from "./SubsetExportDialog";
 import "./annotation.css";
 
 // Sortable row component
@@ -386,6 +387,9 @@ const ClusterAnnotation = (props) => {
   const [chartOrientation, setChartOrientation] = useState("vertical"); // "horizontal" or "vertical"
   const [barWidthRatio, setBarWidthRatio] = useState(0.27); // Bar width ratio (0-1)
 
+  // Subset export dialog state
+  const [showSubsetDialog, setShowSubsetDialog] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -497,11 +501,24 @@ const ClusterAnnotation = (props) => {
       // Check if we have saved annotations
       const savedAnnotations = clusterAnnotations[annotationColumnName];
 
+      // Build a lookup from current clusterList to preserve user-edited annotations
+      // This is critical: when globalClusterOrder changes (drag reorder), we must not
+      // lose annotations that the user has already typed in clusterList items.
+      const existingAnnotationMap = {};
+      clusterList.forEach((item) => {
+        existingAnnotationMap[item.cluster] = item.annotation;
+      });
+
       const clusters = uniqueClusters.map((cluster, index) => ({
         id: `cluster-${index}`,
         cluster: String(cluster),
-        // Use currentAnnotations first, then savedAnnotations, then cluster name as default
-        annotation: currentAnnotations[String(cluster)] || savedAnnotations?.[String(cluster)] || String(cluster),
+        // Priority: existing clusterList annotation (preserves in-progress edits)
+        // → currentAnnotations (persisted edits) → savedAnnotations → cluster name
+        annotation:
+          existingAnnotationMap[String(cluster)] ||
+          currentAnnotations[String(cluster)] ||
+          savedAnnotations?.[String(cluster)] ||
+          String(cluster),
       }));
 
       setClusterList(clusters);
@@ -656,7 +673,14 @@ const ClusterAnnotation = (props) => {
       return;
     }
 
-    // Request cell-level export from worker
+    // Show subset dialog instead of directly exporting
+    setShowSubsetDialog(true);
+  };
+
+  const handleSubsetExportConfirm = ({ excludedClusters, excludedSelections }) => {
+    setShowSubsetDialog(false);
+
+    // Request cell-level export from worker with exclusions
     if (props.scranWorker) {
       const columnName = annotationColumnName || "celltype";
       const clusterAnnotationMap = {};
@@ -664,12 +688,25 @@ const ClusterAnnotation = (props) => {
         clusterAnnotationMap[item.cluster] = item.annotation || "";
       });
 
+      // Build customSelectionData: map of selectionId -> cell indices array
+      const customSelectionData = {};
+      if (props.customSelection && excludedSelections.length > 0) {
+        excludedSelections.forEach(selectionId => {
+          if (props.customSelection[selectionId]) {
+            customSelectionData[selectionId] = props.customSelection[selectionId];
+          }
+        });
+      }
+
       props.scranWorker.postMessage({
         type: "exportCellAnnotations",
         payload: {
           sourceAnnotation: selectedMetadata,
           clusterAnnotationMap,
           columnName,
+          excludedClusters,
+          excludedSelections,
+          customSelectionData, // Pass the actual selection data
         },
       });
     }
@@ -1072,6 +1109,15 @@ const ClusterAnnotation = (props) => {
           />
         </Tabs>
       )}
+
+      {/* Subset Export Dialog */}
+      <SubsetExportDialog
+        isOpen={showSubsetDialog}
+        onClose={() => setShowSubsetDialog(false)}
+        onConfirm={handleSubsetExportConfirm}
+        clusterList={clusterList}
+        customSelection={props.customSelection}
+      />
     </div>
   );
 };

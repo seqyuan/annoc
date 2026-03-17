@@ -1533,6 +1533,7 @@ export function ExplorerMode() {
                   setReqAnnotation={setReqAnnotation}
                   annotationObj={annotationObj}
                   onCollapse={() => setClusterAnnotationCollapsed(true)}
+                  customSelection={customSelection}
                 />
               </SplitPane>
               )}
@@ -1581,6 +1582,7 @@ export function ExplorerMode() {
             <DotPlot
               scranWorker={scranWorker}
               selectedModality={selectedModality}
+              customSelection={customSelection}
             />
           </div>
           <div style={{ display: showPanel === "topmarker" ? "block" : "none" }}>

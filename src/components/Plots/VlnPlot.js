@@ -123,11 +123,12 @@ const VlnPlot = (props) => {
       // Apply globalClusterOrder if available (sync with annotation tab order)
       if (globalClusterOrder && globalClusterOrder[groupByColumn]) {
         const savedOrder = globalClusterOrder[groupByColumn];
+        console.log('Applying globalClusterOrder for', groupByColumn, ':', savedOrder);
         uniqueGroups = savedOrder.filter(cluster => uniqueGroups.includes(cluster));
       }
 
       console.log('groupValues length:', groupValues.length);
-      console.log('uniqueGroups:', uniqueGroups);
+      console.log('uniqueGroups after order adjustment:', uniqueGroups);
 
       // Fetch metric data
       const metricsData = {};
@@ -189,6 +190,8 @@ const VlnPlot = (props) => {
   useEffect(() => {
     if (!plotData || !svgRef.current) return;
 
+    console.log('Rendering VlnPlot with globalClusterOrder:', globalClusterOrder);
+
     // Set explicit SVG dimensions
     const container = svgRef.current.parentElement;
     if (container) {
@@ -200,7 +203,7 @@ const VlnPlot = (props) => {
 
     renderViolinPlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plotData, stackPlots]);
+  }, [plotData, stackPlots, globalClusterOrder]);
 
   const renderViolinPlots = () => {
     const svg = d3.select(svgRef.current);

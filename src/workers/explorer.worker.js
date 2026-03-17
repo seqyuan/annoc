@@ -1276,7 +1276,7 @@ onmessage = function (msg) {
   } else if (type === "exportCellAnnotations") {
     loaded
       .then((x) => {
-        const { sourceAnnotation, clusterAnnotationMap, columnName } = payload;
+        const { sourceAnnotation, clusterAnnotationMap, columnName, excludedClusters = [], excludedSelections = [], customSelectionData = {} } = payload;
 
         try {
           // Get cell barcodes
@@ -1305,16 +1305,67 @@ onmessage = function (msg) {
             return;
           }
 
-          // Build CSV content
+          // Build set of excluded cell indices from Custom Selections
+          const excludedIndices = new Set();
+
+          if (excludedSelections.length > 0) {
+            excludedSelections.forEach(selectionId => {
+              // Get the selection data (array of cell indices)
+              const selectionArray = customSelectionData[selectionId];
+              if (selectionArray && Array.isArray(selectionArray)) {
+                // Add all cell indices from this selection to excluded set
+                selectionArray.forEach(cellIndex => {
+                  excludedIndices.add(cellIndex);
+                });
+                console.log(`Selection ${selectionId}: excluded ${selectionArray.length} cells`);
+              }
+            });
+          }
+
+          // Build CSV content with filtering
+          // A cell is excluded if:
+          // 1. Its cluster is in excludedClusters, OR
+          // 2. Its index is in excludedIndices (from Custom Selections)
           const csvLines = [`barcode,cluster,${columnName}`];
+          let excludedByCluster = 0;
+          let excludedBySelection = 0;
+          let excludedByBoth = 0;
+
           for (let i = 0; i < labels.length; i++) {
-            const barcode = rowNames[i] || "";
             const cluster = String(labels[i] || "");
+
+            // Check if cluster is excluded
+            const clusterExcluded = excludedClusters.includes(cluster);
+
+            // Check if cell index is in excluded selections
+            const selectionExcluded = excludedIndices.has(i);
+
+            // Track exclusion reasons for logging
+            if (clusterExcluded && selectionExcluded) {
+              excludedByBoth++;
+            } else if (clusterExcluded) {
+              excludedByCluster++;
+            } else if (selectionExcluded) {
+              excludedBySelection++;
+            }
+
+            // Skip if either condition is true (union of exclusions)
+            if (clusterExcluded || selectionExcluded) {
+              continue;
+            }
+
+            const barcode = rowNames[i] || "";
             const annotation = clusterAnnotationMap[cluster] || "";
             csvLines.push(`${barcode},${cluster},${annotation}`);
           }
 
           const csvContent = csvLines.join("\n");
+          const totalExcluded = excludedByCluster + excludedBySelection + excludedByBoth;
+
+          console.log(`Export complete: ${csvLines.length - 1} cells exported, ${totalExcluded} cells excluded`);
+          console.log(`  - Excluded by cluster only: ${excludedByCluster}`);
+          console.log(`  - Excluded by selection only: ${excludedBySelection}`);
+          console.log(`  - Excluded by both (overlap): ${excludedByBoth}`);
 
           postMessage({
             type: "exportCellAnnotations_DATA",

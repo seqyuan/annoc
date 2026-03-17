@@ -1,0 +1,40 @@
+.subset-export-dialog {
+  width: 500px;
+  max-height: 80vh;
+}
+
+.subset-dialog-body {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.subset-section {
+  margin-top: 15px;
+}
+
+.subset-section h4 {
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #333;
+}
+
+.subset-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.subset-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #ddd;
+}

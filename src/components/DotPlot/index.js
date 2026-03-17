@@ -144,7 +144,7 @@ function colormapBarStyle(name) {
 }
 
 const DotPlot = (props) => {
-  const { annotationCols, genesInfo, globalClusterOrder } = useContext(AppContext);
+  const { annotationCols, genesInfo, globalClusterOrder, annotationObj } = useContext(AppContext);
 
   const [selectedAnnotation, setSelectedAnnotation] = useState(null);
   const [geneInput, setGeneInput] = useState("");
@@ -1224,6 +1224,8 @@ B cells,MS4A1`}
               scranWorker={props.scranWorker}
               setReqAnnotation={setReqAnnotation}
               onlyAnnotation={true}
+              customSelection={props.customSelection}
+              annotationObj={annotationObj}
             />
           </div>
         </div>
