@@ -182,6 +182,16 @@ function getAnnotationLabels(annotation) {
 /***************************************/
 
 var loaded;
+
+// Helper function to get loaded promise or return rejected promise
+function getLoaded(type) {
+  if (!loaded) {
+    postError(type, new Error("Worker not initialized. Please reload the page."), false);
+    return Promise.reject(new Error("Worker not initialized"));
+  }
+  return loaded;
+}
+
 onmessage = function (msg) {
   const { type, payload } = msg.data;
 
@@ -190,10 +200,7 @@ onmessage = function (msg) {
   let fatal = false;
   if (type === "INIT") {
     fatal = true;
-    // Reduce thread count to avoid memory issues with large datasets
-    // Use fewer threads to leave more memory for data
-    let nthreads = Math.max(1, Math.min(4, Math.round(navigator.hardwareConcurrency / 2)));
-    console.log(`[INIT] Using ${nthreads} threads (available: ${navigator.hardwareConcurrency})`);
+    let nthreads = Math.round((navigator.hardwareConcurrency * 2) / 3);
     let back_init = bakana.initialize({ numberOfThreads: nthreads });
 
     let state_init = back_init.then(() => {
@@ -241,21 +248,9 @@ onmessage = function (msg) {
     /**************** EXPLORE AN ANALYSIS *******************/
   } else if (type === "EXPLORE") {
     fatal = true;
-    loaded
+    getLoaded(type)
       .then(async (x) => {
         console.log("[EXPLORE] Starting exploration...");
-        
-        // Clean up previous dataset to free memory
-        if (dataset) {
-          console.log("[EXPLORE] Cleaning up previous dataset...");
-          try {
-            if (typeof dataset.free === 'function') dataset.free();
-          } catch (e) {
-            console.warn("[EXPLORE] Error freeing dataset:", e);
-          }
-          dataset = null;
-        }
-        
         let inputs = payload.inputs;
         let files = inputs.files;
 
@@ -268,7 +263,6 @@ onmessage = function (msg) {
             if ("uid" in v && v.uid in preflights) {
               preflights[v.uid].clear();
               delete preflights[k];
-              delete preflights_summary[v.uid];
             }
             current[k] = createDataset(v, true);
             current[k].setOptions(v.options);
@@ -353,25 +347,7 @@ onmessage = function (msg) {
         }
       })
       .catch((err) => {
-        console.error("[EXPLORE] Error occurred:", err);
-        
-        // Log memory info if available
-        if (performance && performance.memory) {
-          console.error("[EXPLORE] Memory at error:", {
-            usedJSHeapSize: (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + ' MB',
-            totalJSHeapSize: (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(2) + ' MB',
-            jsHeapSizeLimit: (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + ' MB'
-          });
-        }
-        
-        // Clean up on error
-        if (dataset) {
-          try {
-            if (typeof dataset.free === 'function') dataset.free();
-          } catch (e) {}
-          dataset = null;
-        }
-        
+        console.error(err);
         postError(type, err, fatal);
       });
     /**************** LOADING EXISTING ANALYSES *******************/
@@ -410,18 +386,7 @@ onmessage = function (msg) {
           resp.status = "SUCCESS";
           resp.details = summary;
         } catch (e) {
-          console.error("[PREFLIGHT] Error:", e);
-          
-          // Log memory info for allocation failures
-          if (e.name === 'RangeError' && performance && performance.memory) {
-            console.error("[PREFLIGHT] Memory at error:", {
-              usedJSHeapSize: (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + ' MB',
-              totalJSHeapSize: (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(2) + ' MB',
-              jsHeapSizeLimit: (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + ' MB'
-            });
-            e = new Error("File too large for browser memory. Try: 1) Use Chrome/Edge, 2) Close other tabs, 3) Downsample data in R/Python first.");
-          }
-          
+          console.error(e);
           resp.status = "ERROR";
           resp.reason = e.toString();
         }
@@ -773,6 +738,106 @@ onmessage = function (msg) {
       .catch((err) => {
         console.error(err);
         postError(type, err, fatal);
+      });
+  } else if (type === "computeDE") {
+    if (!loaded) {
+      postError(type, new Error("Worker not initialized. Please reload the page."), false);
+      return;
+    }
+    loaded
+      .then((x) => {
+        let rank_type = payload.rank_type || "cohen-min";
+        let modality = payload.modality || "RNA";
+        let annotation = payload.annotation;
+        let targetGroups = payload.targetGroups;
+        let compareMode = payload.compareMode;
+        let compareGroups = payload.compareGroups;
+
+        if (!targetGroups || targetGroups.length === 0) {
+          postError(type, new Error("No target groups specified"), false);
+          return;
+        }
+
+        if (!dataset || !dataset.matrix) {
+          postError(type, new Error("Dataset not loaded. Please load data first."), false);
+          return;
+        }
+
+        let annotation_vec = scran.factorize(getAnnotation(annotation));
+        let mds = getMarkerStandAloneForAnnot(annotation, annotation_vec);
+
+        // Create binary grouping for target vs reference
+        let target_cells = [];
+        let ref_cells = [];
+        let anno_array = getAnnotation(annotation);
+
+        for (let i = 0; i < anno_array.length; i++) {
+          let cellGroup = String(anno_array[i]);
+          if (targetGroups.includes(cellGroup)) {
+            target_cells.push(i);
+          } else if (compareMode === "vsAll") {
+            ref_cells.push(i);
+          } else if (compareGroups.includes(cellGroup)) {
+            ref_cells.push(i);
+          }
+        }
+
+        if (target_cells.length === 0) {
+          postError(type, new Error("No cells in target groups"), false);
+          return;
+        }
+        if (ref_cells.length === 0) {
+          postError(type, new Error("No cells in reference groups"), false);
+          return;
+        }
+
+        // Create binary grouping: 0 = reference, 1 = target
+        let binary_groups = new Int32Array(anno_array.length);
+        binary_groups.fill(-1);
+        for (let idx of target_cells) {
+          binary_groups[idx] = 1;
+        }
+        for (let idx of ref_cells) {
+          binary_groups[idx] = 0;
+        }
+
+        // Get matrix for the specified modality
+        if (!dataset.matrix || typeof dataset.matrix.available !== 'function') {
+          postError(type, new Error("Dataset matrix not properly initialized"), false);
+          return;
+        }
+
+        const availableModalities = dataset.matrix.available();
+        console.log("[computeDE] Available modalities:", availableModalities);
+
+        if (!availableModalities.includes(modality)) {
+          postError(type, new Error(`Modality '${modality}' not found. Available: ${availableModalities.join(', ')}`), false);
+          return;
+        }
+
+        const mat = dataset.matrix.get(modality);
+        if (!mat) {
+          postError(type, new Error(`Failed to get matrix for modality '${modality}'`), false);
+          return;
+        }
+        let raw_res = scran.scoreMarkers(mat, binary_groups, { numberOfThreads: 4 });
+        let resp = bakana.formatMarkerResults(raw_res, 1, rank_type);
+        raw_res.free();
+
+        var transferrable = [];
+        extractBuffers(resp, transferrable);
+        postMessage(
+          {
+            type: "computeDE_DATA",
+            resp: resp,
+            msg: "Success: COMPUTE_DE done",
+          },
+          transferrable
+        );
+      })
+      .catch((err) => {
+        console.error(err);
+        postError(type, err, false);
       });
   } else if (type === "computeFeaturesetSummary") {
     loaded
@@ -1321,7 +1386,7 @@ onmessage = function (msg) {
   } else if (type === "exportCellAnnotations") {
     loaded
       .then((x) => {
-        const { sourceAnnotation, clusterAnnotationMap, columnName, excludedClusters = [], excludedSelections = [], customSelectionData = {} } = payload;
+        const { sourceAnnotation, clusterAnnotationMap, columnName } = payload;
 
         try {
           // Get cell barcodes
@@ -1350,67 +1415,16 @@ onmessage = function (msg) {
             return;
           }
 
-          // Build set of excluded cell indices from Custom Selections
-          const excludedIndices = new Set();
-
-          if (excludedSelections.length > 0) {
-            excludedSelections.forEach(selectionId => {
-              // Get the selection data (array of cell indices)
-              const selectionArray = customSelectionData[selectionId];
-              if (selectionArray && Array.isArray(selectionArray)) {
-                // Add all cell indices from this selection to excluded set
-                selectionArray.forEach(cellIndex => {
-                  excludedIndices.add(cellIndex);
-                });
-                console.log(`Selection ${selectionId}: excluded ${selectionArray.length} cells`);
-              }
-            });
-          }
-
-          // Build CSV content with filtering
-          // A cell is excluded if:
-          // 1. Its cluster is in excludedClusters, OR
-          // 2. Its index is in excludedIndices (from Custom Selections)
+          // Build CSV content
           const csvLines = [`barcode,cluster,${columnName}`];
-          let excludedByCluster = 0;
-          let excludedBySelection = 0;
-          let excludedByBoth = 0;
-
           for (let i = 0; i < labels.length; i++) {
-            const cluster = String(labels[i] || "");
-
-            // Check if cluster is excluded
-            const clusterExcluded = excludedClusters.includes(cluster);
-
-            // Check if cell index is in excluded selections
-            const selectionExcluded = excludedIndices.has(i);
-
-            // Track exclusion reasons for logging
-            if (clusterExcluded && selectionExcluded) {
-              excludedByBoth++;
-            } else if (clusterExcluded) {
-              excludedByCluster++;
-            } else if (selectionExcluded) {
-              excludedBySelection++;
-            }
-
-            // Skip if either condition is true (union of exclusions)
-            if (clusterExcluded || selectionExcluded) {
-              continue;
-            }
-
             const barcode = rowNames[i] || "";
+            const cluster = String(labels[i] || "");
             const annotation = clusterAnnotationMap[cluster] || "";
             csvLines.push(`${barcode},${cluster},${annotation}`);
           }
 
           const csvContent = csvLines.join("\n");
-          const totalExcluded = excludedByCluster + excludedBySelection + excludedByBoth;
-
-          console.log(`Export complete: ${csvLines.length - 1} cells exported, ${totalExcluded} cells excluded`);
-          console.log(`  - Excluded by cluster only: ${excludedByCluster}`);
-          console.log(`  - Excluded by selection only: ${excludedBySelection}`);
-          console.log(`  - Excluded by both (overlap): ${excludedByBoth}`);
 
           postMessage({
             type: "exportCellAnnotations_DATA",
@@ -1442,7 +1456,7 @@ onmessage = function (msg) {
         });
       });
   } else if (type === "checkH5adMarkers") {
-    loaded
+    getLoaded(type)
       .then((x) => {
         let hasMarkers = false;
         try {

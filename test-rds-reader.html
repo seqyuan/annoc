@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDS Reader Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        #output {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .info {
+            color: blue;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+        }
+        #fileInput {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>RDS File Reader Test</h1>
+    <p>This script tests reading Seurat RDS files using the same logic as the main application.</p>
+
+    <div>
+        <input type="file" id="fileInput" accept=".rds,.RDS">
+        <button onclick="testReadFile()">Test Read File</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <h2>Output:</h2>
+    <div id="output"></div>
+
+    <script type="module">
+        import * as scran from "https://cdn.jsdelivr.net/npm/scran.js@latest/dist/index.esm.js";
+
+        window.scranModule = scran;
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        window.log = log;
+
+        log('Initializing scran.js...', 'info');
+
+        scran.initialize({ numberOfThreads: 1 })
+            .then(() => {
+                log('✓ scran.js initialized successfully', 'success');
+            })
+            .catch(err => {
+                log(`✗ Failed to initialize scran.js: ${err.message}`, 'error');
+                console.error(err);
+            });
+    </script>
+
+    <script>
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        async function testReadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                log('Please select a file first', 'error');
+                return;
+            }
+
+            log(`\n========================================`, 'info');
+            log(`Testing file: ${file.name}`, 'info');
+            log(`File size: ${(file.size / 1024 / 1024).toFixed(2)} MB`, 'info');
+            log(`========================================\n`, 'info');
+
+            try {
+                // Step 1: Read file as ArrayBuffer
+                log('Step 1: Reading file as ArrayBuffer...', 'info');
+                const arrayBuffer = await file.arrayBuffer();
+                log(`✓ File read successfully (${arrayBuffer.byteLength} bytes)`, 'success');
+
+                // Step 2: Convert to Uint8Array
+                log('\nStep 2: Converting to Uint8Array...', 'info');
+                const uint8Array = new Uint8Array(arrayBuffer);
+                log(`✓ Converted to Uint8Array (length: ${uint8Array.length})`, 'success');
+
+                // Step 3: Parse RDS using scran.js
+                log('\nStep 3: Parsing RDS file with scran.js...', 'info');
+
+                if (!window.scranModule) {
+                    throw new Error('scran.js module not loaded');
+                }
+
+                const parsed = window.scranModule.readRds(uint8Array);
+                log(`✓ RDS parsed successfully`, 'success');
+
+                // Step 4: Inspect the parsed object
+                log('\nStep 4: Inspecting parsed RDS object...', 'info');
+                log(`Type: ${typeof parsed}`, 'info');
+                log(`Constructor: ${parsed?.constructor?.name || 'unknown'}`, 'info');
+
+                if (parsed && typeof parsed === 'object') {
+                    const keys = Object.keys(parsed);
+                    log(`\nObject keys (${keys.length}):`, 'info');
+                    keys.forEach(key => {
+                        const value = parsed[key];
+                        const valueType = typeof value;
+                        const valueInfo = valueType === 'object' && value !== null
+                            ? `${value.constructor?.name || 'Object'} (${Object.keys(value).length} keys)`
+                            : valueType;
+                        log(`  - ${key}: ${valueInfo}`, 'info');
+                    });
+
+                    // Check for common Seurat object properties
+                    log('\nChecking for Seurat object structure...', 'info');
+                    const seuratProps = ['assays', 'meta.data', 'reductions', 'active.assay', 'active.ident'];
+                    seuratProps.forEach(prop => {
+                        const hasProp = prop in parsed;
+                        log(`  ${hasProp ? '✓' : '✗'} ${prop}: ${hasProp ? 'found' : 'not found'}`, hasProp ? 'success' : 'error');
+                    });
+
+                    // Try to extract metadata
+                    if (parsed['meta.data']) {
+                        log('\nExtracting meta.data...', 'info');
+                        const metadata = parsed['meta.data'];
+                        log(`  Type: ${metadata?.constructor?.name || typeof metadata}`, 'info');
+
+                        if (metadata && typeof metadata === 'object') {
+                            const metaKeys = Object.keys(metadata);
+                            log(`  Keys (${metaKeys.length}): ${metaKeys.slice(0, 10).join(', ')}${metaKeys.length > 10 ? '...' : ''}`, 'info');
+                        }
+                    }
+
+                    // Try to extract assays
+                    if (parsed.assays) {
+                        log('\nExtracting assays...', 'info');
+                        const assays = parsed.assays;
+                        log(`  Type: ${assays?.constructor?.name || typeof assays}`, 'info');
+
+                        if (assays && typeof assays === 'object') {
+                            const assayKeys = Object.keys(assays);
+                            log(`  Assays (${assayKeys.length}): ${assayKeys.join(', ')}`, 'info');
+                        }
+                    }
+
+                    // Try to extract reductions
+                    if (parsed.reductions) {
+                        log('\nExtracting reductions...', 'info');
+                        const reductions = parsed.reductions;
+                        log(`  Type: ${reductions?.constructor?.name || typeof reductions}`, 'info');
+
+                        if (reductions && typeof reductions === 'object') {
+                            const reductionKeys = Object.keys(reductions);
+                            log(`  Reductions (${reductionKeys.length}): ${reductionKeys.join(', ')}`, 'info');
+                        }
+                    }
+                }
+
+                log('\n========================================', 'success');
+                log('✓ TEST COMPLETED SUCCESSFULLY', 'success');
+                log('========================================', 'success');
+
+                // Store parsed object for console inspection
+                window.parsedRDS = parsed;
+                log('\nParsed object stored in window.parsedRDS for console inspection', 'info');
+
+            } catch (error) {
+                log('\n========================================', 'error');
+                log('✗ TEST FAILED', 'error');
+                log('========================================', 'error');
+                log(`\nError: ${error.message}`, 'error');
+                log(`\nStack trace:\n${error.stack}`, 'error');
+                console.error('Full error object:', error);
+            }
+        }
+
+        window.testReadFile = testReadFile;
+    </script>
+</body>
+</html>
